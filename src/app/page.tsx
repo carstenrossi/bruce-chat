@@ -5,10 +5,12 @@ import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { useChatRooms } from '@/hooks/useChatRooms';
 import { useRealtimeMessages } from '@/hooks/useRealtimeMessages';
 import AuthButton from '@/components/AuthButton';
+import ReactMarkdown from 'react-markdown';
 
 export default function ChatPage() {
   const { user, loading: authLoading } = useSupabaseAuth();
-  const { chatRooms, currentRoomId, loading: roomsLoading } = useChatRooms(user);
+  // 'chatRooms' wird hier nicht direkt verwendet, aber der Hook initialisiert den Raum, was wichtig ist.
+  const { currentRoomId, loading: roomsLoading } = useChatRooms(user);
   const { messages, loading: messagesLoading, sendMessage, clearMessages } = useRealtimeMessages(currentRoomId, user);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -94,7 +96,7 @@ export default function ChatPage() {
               <p className="text-lg">👋 Willkommen im Bruce Chat!</p>
               <p className="text-sm mt-2">Schreibe die erste Nachricht oder erwähne @bruce/@ki für eine KI-Antwort.</p>
               <p className="text-xs mt-2 text-gray-400">
-                💡 Tipp: Nutze Wörter wie "suche", "aktuell", "news" oder "heute" für Web-Suche!
+                💡 Tipp: Nutze Wörter wie &quot;suche&quot;, &quot;aktuell&quot;, &quot;news&quot; oder &quot;heute&quot; für Web-Suche!
               </p>
             </div>
           ) : (
@@ -104,15 +106,15 @@ export default function ChatPage() {
                 className={`flex ${message.author_id === user?.id ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                  className={`prose prose-sm max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                     message.author_id === user?.id
-                      ? 'bg-blue-500 text-white'
+                      ? 'bg-blue-500 text-white prose-invert'
                       : message.is_ai_response
                       ? 'bg-purple-100 text-purple-900 border border-purple-200'
                       : 'bg-white text-gray-900 border border-gray-200'
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 not-prose">
                     <span className="text-xs font-semibold">
                       {message.author_name}
                       {message.is_ai_response && ' 🤖'}
@@ -124,39 +126,14 @@ export default function ChatPage() {
                       })}
                     </span>
                   </div>
-                  <div className="text-sm">
-                    {message.is_ai_response && message.content.includes('[') && message.content.includes('](') ? (
-                      // Rendere AI Nachrichten mit Markdown-Links
-                      <div className="whitespace-pre-wrap">
-                        {message.content.split(/(\[([^\]]+)\]\([^)]+\))/).map((part, index) => {
-                          // Prüfe ob es ein Markdown Link ist
-                          const linkMatch = part.match(/\[([^\]]+)\]\(([^)]+)\)/);
-                          if (linkMatch) {
-                            return (
-                              <a
-                                key={index}
-                                href={linkMatch[2]}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 underline"
-                              >
-                                {linkMatch[1]}
-                              </a>
-                            );
-                          }
-                          // Rendere Bold Text
-                          return part.split(/(\*\*[^*]+\*\*)/).map((textPart, textIndex) => {
-                            if (textPart.startsWith('**') && textPart.endsWith('**')) {
-                              return <strong key={`${index}-${textIndex}`}>{textPart.slice(2, -2)}</strong>;
-                            }
-                            return <span key={`${index}-${textIndex}`}>{textPart}</span>;
-                          });
-                        })}
-                      </div>
-                    ) : (
-                      <p>{message.content}</p>
-                    )}
-                  </div>
+                   <ReactMarkdown
+                      components={{
+                        a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline" />,
+                        p: ({node, ...props}) => <p {...props} className="m-0" />
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
                 </div>
               </div>
             ))
