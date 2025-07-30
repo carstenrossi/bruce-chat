@@ -122,26 +122,7 @@ Antworte hilfsreich, freundlich und auf Deutsch. Halte deine Antwort prägnant u
 }`;
 
     // Claude API Aufruf mit optionaler Web Search
-    interface MessageParams {
-      model: string;
-      max_tokens: number;
-      temperature: number;
-      messages: Array<{ role: 'user' | 'assistant'; content: string }>;
-      tools?: Array<{
-        type: string;
-        name: string;
-        max_uses: number;
-        user_location: {
-          type: string;
-          city: string;
-          region: string;
-          country: string;
-          timezone: string;
-        };
-      }>;
-    }
-    
-    const messageParams: MessageParams = {
+    const messageParams: Anthropic.MessageCreateParams = {
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
       temperature: 0.7,
