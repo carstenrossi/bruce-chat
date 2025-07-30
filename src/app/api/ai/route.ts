@@ -102,6 +102,14 @@ export async function POST(request: NextRequest) {
       ?.map(msg => `${msg.author_name}: ${msg.content}`)
       ?.join('\n') || '';
 
+    // Prüfe ob Web Search erwünscht ist
+    const shouldSearch = originalMessage.content.toLowerCase().includes('such') || 
+                        originalMessage.content.toLowerCase().includes('search') ||
+                        originalMessage.content.toLowerCase().includes('aktuell') ||
+                        originalMessage.content.toLowerCase().includes('news') ||
+                        originalMessage.content.toLowerCase().includes('heute') ||
+                        originalMessage.content.toLowerCase().includes('neueste');
+
     const prompt = `Du bist Bruce, ein hilfsreicher KI-Assistent in einem Team-Chat. Du wurdest in folgender Nachricht erwähnt:
 
 "${originalMessage.content}" - von ${originalMessage.author_name}
@@ -109,10 +117,12 @@ export async function POST(request: NextRequest) {
 Hier ist der Chat-Kontext der letzten Nachrichten:
 ${conversationContext}
 
-Antworte hilfsreich, freundlich und auf Deutsch. Halte deine Antwort prägnant und relevant. Du darfst auch Emojis verwenden.`;
+Antworte hilfsreich, freundlich und auf Deutsch. Halte deine Antwort prägnant und relevant. Du darfst auch Emojis verwenden.${
+  shouldSearch ? '\n\nDu hast Zugriff auf Web-Suche für aktuelle Informationen. Nutze sie wenn nötig und gib immer Quellen an.' : ''
+}`;
 
-    // Claude API Aufruf
-    const response = await anthropic.messages.create({
+    // Claude API Aufruf mit optionaler Web Search
+    const messageParams: any = {
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
       temperature: 0.7,
@@ -122,11 +132,58 @@ Antworte hilfsreich, freundlich und auf Deutsch. Halte deine Antwort prägnant u
           content: prompt,
         },
       ],
-    });
+    };
 
-    const aiResponse = response.content[0]?.type === 'text' 
-      ? response.content[0].text 
-      : 'Entschuldigung, ich konnte keine Antwort generieren.';
+    // Füge Web Search Tool hinzu wenn benötigt
+    if (shouldSearch) {
+      messageParams.tools = [{
+        type: "web_search_20250305",
+        name: "web_search",
+        max_uses: 3,
+        user_location: {
+          type: "approximate",
+          city: "Berlin",
+          region: "Berlin",
+          country: "DE",
+          timezone: "Europe/Berlin"
+        }
+      }];
+    }
+
+    const response = await anthropic.messages.create(messageParams);
+
+    // Verarbeite die Response (kann mehrere Content-Blöcke bei Web Search enthalten)
+    let aiResponse = '';
+    let citations: string[] = [];
+    
+    if (response.content && Array.isArray(response.content)) {
+      for (const content of response.content) {
+        if (content.type === 'text') {
+          aiResponse += content.text;
+          
+          // Extrahiere Zitate wenn vorhanden
+          if (content.citations && Array.isArray(content.citations)) {
+            for (const citation of content.citations) {
+              if (citation.type === 'web_search_result_location') {
+                const citationText = `[${citation.title}](${citation.url})`;
+                if (!citations.includes(citationText)) {
+                  citations.push(citationText);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Füge Quellenangaben am Ende hinzu wenn vorhanden
+    if (citations.length > 0) {
+      aiResponse += '\n\n**Quellen:**\n' + citations.map((c, i) => `${i + 1}. ${c}`).join('\n');
+    }
+    
+    if (!aiResponse) {
+      aiResponse = 'Entschuldigung, ich konnte keine Antwort generieren.';
+    }
 
     // KI-Antwort in die Datenbank speichern
     const { error: insertError } = await supabase

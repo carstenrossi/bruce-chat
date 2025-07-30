@@ -6,6 +6,7 @@ Ein moderner Team-Chat mit integrierter Claude KI, die nur bei @mentions antwort
 
 - 💬 **Realtime Chat** mit mehreren Nutzern
 - 🤖 **Claude KI Integration** - erwähne @bruce oder @ki
+- 🔍 **Web Search Integration** - nutze Keywords wie "suche", "aktuell", "news" für Internet-Suche
 - 🔐 **Magic Link Authentication** mit Supabase
 - 📱 **Responsive Design** - funktioniert überall
 - ⚡ **Live Updates** - sieh Nachrichten sofort
@@ -42,7 +43,7 @@ npm run dev
 - **Frontend:** Next.js 15 + React 19 + TypeScript
 - **Styling:** Tailwind CSS v4
 - **Backend:** Supabase (PostgreSQL + Realtime + Auth)
-- **KI:** Anthropic Claude 3 Sonnet
+- **KI:** Anthropic Claude Sonnet 4 mit Web Search
 - **Deployment:** Vercel
 
 ## 📝 Verwendung

@@ -93,6 +93,9 @@ export default function ChatPage() {
             <div className="text-center text-gray-500 py-8">
               <p className="text-lg">👋 Willkommen im Bruce Chat!</p>
               <p className="text-sm mt-2">Schreibe die erste Nachricht oder erwähne @bruce/@ki für eine KI-Antwort.</p>
+              <p className="text-xs mt-2 text-gray-400">
+                💡 Tipp: Nutze Wörter wie "suche", "aktuell", "news" oder "heute" für Web-Suche!
+              </p>
             </div>
           ) : (
             messages.map((message) => (
@@ -121,7 +124,21 @@ export default function ChatPage() {
                       })}
                     </span>
                   </div>
-                  <p className="text-sm">{message.content}</p>
+                  <div className="text-sm">
+                    {message.is_ai_response && message.content.includes('[') && message.content.includes('](') ? (
+                      // Rendere AI Nachrichten mit Markdown-Links
+                      <div
+                        dangerouslySetInnerHTML={{
+                          __html: message.content
+                            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">$1</a>')
+                            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/\n/g, '<br />')
+                        }}
+                      />
+                    ) : (
+                      <p>{message.content}</p>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
