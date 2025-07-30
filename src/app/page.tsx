@@ -8,9 +8,18 @@ import AuthButton from '@/components/AuthButton';
 import ReactMarkdown from 'react-markdown';
 import jsPDF from 'jspdf';
 
+// Hilfsfunktion, um Markdown zu reinigen und Links zu extrahieren
+const cleanMarkdownForPdf = (markdown: string): string => {
+  return markdown
+    // Ersetze Markdown-Links durch "Titel: URL"
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1: $2')
+    // Entferne fette Schrift und andere Markdown-Formatierungen
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1');
+};
+
 export default function ChatPage() {
   const { user, loading: authLoading } = useSupabaseAuth();
-  // 'chatRooms' wird hier nicht direkt verwendet, aber der Hook initialisiert den Raum, was wichtig ist.
   const { currentRoomId, loading: roomsLoading } = useChatRooms(user);
   const { messages, loading: messagesLoading, sendMessage, clearMessages } = useRealtimeMessages(currentRoomId, user);
   const [newMessage, setNewMessage] = useState('');
@@ -20,29 +29,20 @@ export default function ChatPage() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !user || sending) return;
-
     setSending(true);
     const content = newMessage;
-    setNewMessage(''); // Sofort leeren für bessere UX
-
+    setNewMessage('');
     const success = await sendMessage(content);
-    
     if (!success) {
-      // Bei Fehler Nachricht wieder eintragen
       setNewMessage(content);
       alert('Fehler beim Senden der Nachricht. Bitte versuche es erneut.');
     }
-
     setSending(false);
   };
 
   const handleClearChat = async () => {
     if (!user) return;
-    
-    const confirmed = window.confirm(
-      'Möchtest du wirklich alle Nachrichten löschen? Diese Aktion kann nicht rückgängig gemacht werden.'
-    );
-    
+    const confirmed = window.confirm('Möchtest du wirklich alle Nachrichten löschen? Diese Aktion kann nicht rückgängig gemacht werden.');
     if (confirmed) {
       const success = await clearMessages();
       if (!success) {
@@ -53,39 +53,43 @@ export default function ChatPage() {
 
   const handleExportToPdf = () => {
     if (messages.length === 0 || isExporting) return;
-
     setIsExporting(true);
 
     try {
       const doc = new jsPDF();
-      let y = 15; // Startposition auf der Y-Achse
+      let y = 15;
       const pageHeight = doc.internal.pageSize.height;
       const margin = 10;
+      const lineHeight = 5; // Höhe einer Textzeile
+      const lineSpacing = 2; // Abstand zwischen den Zeilen
 
       doc.setFont('Helvetica', 'bold');
       doc.text('Bruce Chat - Chat-Protokoll', margin, y);
       y += 10;
 
       messages.forEach(message => {
-        if (y > pageHeight - margin) {
+        const timestamp = new Date(message.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+        const author = `${message.author_name}${message.is_ai_response ? ' (KI)' : ''}`;
+        const header = `${author} (${timestamp}):`;
+        const cleanedContent = cleanMarkdownForPdf(message.content);
+        
+        const headerLines = doc.splitTextToSize(header, 180);
+        const contentLines = doc.splitTextToSize(cleanedContent, 180);
+        
+        const blockHeight = (headerLines.length + contentLines.length) * lineHeight + lineSpacing * 2;
+
+        if (y + blockHeight > pageHeight - margin) {
           doc.addPage();
           y = margin;
         }
 
-        const timestamp = new Date(message.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-        const author = `${message.author_name}${message.is_ai_response ? ' (KI)' : ''}`;
-        
         doc.setFont('Helvetica', 'bold');
-        const header = `${author} (${timestamp}):`;
-        doc.text(header, margin, y);
-        y += 6;
-
-        doc.setFont('Helvetica', 'normal');
-        // `splitTextToSize` bricht den Text automatisch um
-        const contentLines = doc.splitTextToSize(message.content, 180);
-        doc.text(contentLines, margin, y);
+        doc.text(headerLines, margin, y);
+        y += headerLines.length * lineHeight + lineSpacing;
         
-        y += (contentLines.length * 5) + 5; // Abstand zur nächsten Nachricht
+        doc.setFont('Helvetica', 'normal');
+        doc.text(contentLines, margin, y);
+        y += contentLines.length * lineHeight + lineSpacing + 5; // Extra Abstand zum nächsten Block
       });
 
       const date = new Date().toISOString().split('T')[0];
@@ -112,7 +116,6 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 p-4">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <div>
@@ -143,8 +146,6 @@ export default function ChatPage() {
           </div>
         </div>
       </header>
-
-      {/* Chat Messages */}
       <main className="flex-1 overflow-y-auto p-4" id="chat-container">
         <div className="max-w-4xl mx-auto space-y-4">
           {messagesLoading ? (
@@ -200,8 +201,6 @@ export default function ChatPage() {
           )}
         </div>
       </main>
-
-      {/* Message Input */}
       <footer className="bg-white border-t border-gray-200 p-4">
         <div className="max-w-4xl mx-auto">
           <form onSubmit={handleSendMessage} className="flex gap-2">
