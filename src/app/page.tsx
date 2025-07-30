@@ -9,7 +9,7 @@ import AuthButton from '@/components/AuthButton';
 export default function ChatPage() {
   const { user, loading: authLoading } = useSupabaseAuth();
   const { chatRooms, currentRoomId, loading: roomsLoading } = useChatRooms(user);
-  const { messages, loading: messagesLoading, sendMessage } = useRealtimeMessages(currentRoomId, user);
+  const { messages, loading: messagesLoading, sendMessage, clearMessages } = useRealtimeMessages(currentRoomId, user);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
 
@@ -32,6 +32,21 @@ export default function ChatPage() {
     setSending(false);
   };
 
+  const handleClearChat = async () => {
+    if (!user) return;
+    
+    const confirmed = window.confirm(
+      'Möchtest du wirklich alle Nachrichten löschen? Diese Aktion kann nicht rückgängig gemacht werden.'
+    );
+    
+    if (confirmed) {
+      const success = await clearMessages();
+      if (!success) {
+        alert('Fehler beim Löschen der Nachrichten. Bitte versuche es erneut.');
+      }
+    }
+  };
+
   if (authLoading || roomsLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -52,7 +67,18 @@ export default function ChatPage() {
             <h1 className="text-2xl font-bold text-gray-900">Bruce Chat 💬</h1>
             <p className="text-sm text-gray-600">Kollaborativer Chat mit KI-Integration</p>
           </div>
-          <AuthButton />
+          <div className="flex gap-2 items-center">
+            {user && messages.length > 0 && (
+              <button
+                onClick={handleClearChat}
+                className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                title="Chat leeren"
+              >
+                🗑️ Chat leeren
+              </button>
+            )}
+            <AuthButton />
+          </div>
         </div>
       </header>
 

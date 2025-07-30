@@ -87,9 +87,35 @@ export function useRealtimeMessages(chatRoomId: string, user: User | null) {
     }
   };
 
+  // Chat leeren
+  const clearMessages = async (): Promise<boolean> => {
+    if (!chatRoomId) return false;
+
+    try {
+      // Lösche alle Nachrichten aus diesem Chat-Raum
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .eq('chat_room_id', chatRoomId);
+
+      if (error) {
+        console.error('Fehler beim Löschen der Nachrichten:', error);
+        return false;
+      }
+
+      // Lokalen State leeren
+      setMessages([]);
+      return true;
+    } catch (error) {
+      console.error('Fehler beim Löschen der Nachrichten:', error);
+      return false;
+    }
+  };
+
   return {
     messages,
     loading,
     sendMessage,
+    clearMessages,
   };
 }
