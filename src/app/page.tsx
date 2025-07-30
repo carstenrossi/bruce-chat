@@ -1,102 +1,135 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState } from 'react';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { useChatRooms } from '@/hooks/useChatRooms';
+import { useRealtimeMessages } from '@/hooks/useRealtimeMessages';
+import AuthButton from '@/components/AuthButton';
+
+export default function ChatPage() {
+  const { user, loading: authLoading } = useSupabaseAuth();
+  const { chatRooms, currentRoomId, loading: roomsLoading } = useChatRooms(user);
+  const { messages, loading: messagesLoading, sendMessage } = useRealtimeMessages(currentRoomId, user);
+  const [newMessage, setNewMessage] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !user || sending) return;
+
+    setSending(true);
+    const content = newMessage;
+    setNewMessage(''); // Sofort leeren für bessere UX
+
+    const success = await sendMessage(content);
+    
+    if (!success) {
+      // Bei Fehler Nachricht wieder eintragen
+      setNewMessage(content);
+      alert('Fehler beim Senden der Nachricht. Bitte versuche es erneut.');
+    }
+
+    setSending(false);
+  };
+
+  if (authLoading || roomsLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Bruce Chat lädt...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="flex flex-col h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 p-4">
+        <div className="max-w-4xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Bruce Chat 💬</h1>
+            <p className="text-sm text-gray-600">Kollaborativer Chat mit KI-Integration</p>
+          </div>
+          <AuthButton />
+        </div>
+      </header>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      {/* Chat Messages */}
+      <main className="flex-1 overflow-y-auto p-4">
+        <div className="max-w-4xl mx-auto space-y-4">
+          {messagesLoading ? (
+            <div className="text-center text-gray-500">
+              <div className="animate-pulse">Nachrichten werden geladen...</div>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              <p className="text-lg">👋 Willkommen im Bruce Chat!</p>
+              <p className="text-sm mt-2">Schreibe die erste Nachricht oder erwähne @bruce/@ki für eine KI-Antwort.</p>
+            </div>
+          ) : (
+            messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${message.author_id === user?.id ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                    message.author_id === user?.id
+                      ? 'bg-blue-500 text-white'
+                      : message.is_ai_response
+                      ? 'bg-purple-100 text-purple-900 border border-purple-200'
+                      : 'bg-white text-gray-900 border border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-semibold">
+                      {message.author_name}
+                      {message.is_ai_response && ' 🤖'}
+                    </span>
+                    <span className="text-xs opacity-70">
+                      {new Date(message.created_at).toLocaleTimeString('de-DE', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </span>
+                  </div>
+                  <p className="text-sm">{message.content}</p>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+
+      {/* Message Input */}
+      <footer className="bg-white border-t border-gray-200 p-4">
+        <div className="max-w-4xl mx-auto">
+          <form onSubmit={handleSendMessage} className="flex gap-2">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder={user ? "Nachricht schreiben... (@bruce oder @ki für KI-Antwort)" : "Bitte anmelden um zu chatten"}
+              disabled={!user}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+            />
+            <button
+              type="submit"
+              disabled={!newMessage.trim() || !user || sending}
+              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {sending ? '...' : 'Senden'}
+            </button>
+          </form>
+          <p className="text-xs text-gray-500 mt-2">
+            {user 
+              ? "💡 Tipp: Verwende @bruce oder @ki um die KI zu erwähnen"
+              : "🔐 Melde dich an um am Chat teilzunehmen"
+            }
+          </p>
+        </div>
       </footer>
     </div>
   );

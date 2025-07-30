@@ -1,36 +1,120 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🤖 Bruce Chat - Kollaborativer KI-Chat
 
-## Getting Started
+Ein moderner Team-Chat mit integrierter Claude KI, die nur bei @mentions antwortet.
 
-First, run the development server:
+## ✨ Features
 
+- 💬 **Realtime Chat** mit mehreren Nutzern
+- 🤖 **Claude KI Integration** - erwähne @bruce oder @ki
+- 🔐 **Magic Link Authentication** mit Supabase
+- 📱 **Responsive Design** - funktioniert überall
+- ⚡ **Live Updates** - sieh Nachrichten sofort
+- 🎯 **Context-Aware** - KI kennt die letzten 50 Nachrichten
+- 🚫 **Anti-Loop** - KI antwortet nur auf Menschen, nicht auf sich selbst
+
+## 🚀 Quick Start
+
+1. **Repo klonen und Dependencies installieren:**
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone [dein-repo]
+cd bruce-chat
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. **Supabase Projekt erstellen:**
+   - Gehe zu [supabase.com](https://supabase.com/new)
+   - Erstelle neues Projekt: "bruce-chat"
+   - Führe `supabase-schema.sql` im SQL Editor aus
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. **Environment Variables:**
+```bash
+cp .env.local.example .env.local
+# Fülle deine Supabase und Anthropic API Keys ein
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. **Development starten:**
+```bash
+npm run dev
+```
 
-## Learn More
+## 🛠 Tech Stack
 
-To learn more about Next.js, take a look at the following resources:
+- **Frontend:** Next.js 15 + React 19 + TypeScript
+- **Styling:** Tailwind CSS v4
+- **Backend:** Supabase (PostgreSQL + Realtime + Auth)
+- **KI:** Anthropic Claude 3 Sonnet
+- **Deployment:** Vercel
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📝 Verwendung
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **Anmelden:** Klicke auf "Mit Magic Link anmelden"
+2. **Chatten:** Schreibe normale Nachrichten
+3. **KI erwähnen:** Verwende @bruce oder @ki für KI-Antworten
+4. **Realtime:** Alle Nutzer sehen Nachrichten sofort
 
-## Deploy on Vercel
+## 🔧 Konfiguration
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Environment Variables
+```env
+# Supabase (erforderlich)
+NEXT_PUBLIC_SUPABASE_URL=deine_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=dein_key
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# Claude API (erforderlich)
+ANTHROPIC_API_KEY=dein_claude_key
+
+# Optional
+NEXT_PUBLIC_APP_NAME="Dein Chat Name"
+NEXT_PUBLIC_MAX_CONTEXT_MESSAGES=50
+```
+
+### Deployment auf Vercel
+
+1. **Repository zu Vercel connecten**
+2. **Environment Variables setzen** (siehe oben)
+3. **Deploy!** - Vercel erkennt Next.js automatisch
+
+## 🏗 Architektur
+
+```
+src/
+├── app/                  # Next.js App Router
+│   ├── api/ai/          # Claude API Endpoint
+│   └── auth/callback/   # Auth Callback
+├── components/          # React Components
+├── hooks/              # Custom React Hooks
+│   ├── useSupabaseAuth.ts
+│   ├── useRealtimeMessages.ts
+│   └── useAIResponse.ts
+└── lib/                # Utilities
+    └── supabase.ts     # DB Types & Client
+```
+
+## 🗄 Database Schema
+
+- **profiles:** User-Daten (automatisch bei Anmeldung)
+- **chat_rooms:** Chat-Räume (Standard: "Allgemeiner Chat")
+- **messages:** Alle Nachrichten mit Realtime Updates
+
+## 🤖 KI-Integration
+
+- **Mentions:** `@bruce` oder `@ki` triggern KI-Antworten
+- **Kontext:** Letzte 50 menschliche Nachrichten (keine KI-Loops)
+- **Async:** KI-Antworten kommen nach 1.5s Delay
+- **Persistent:** Alle Antworten werden gespeichert
+
+## 🎨 Customization
+
+- **Farben:** Ändere Tailwind-Klassen in den Components
+- **KI-Name:** Ändere "Bruce" in `src/app/api/ai/route.ts`
+- **Prompt:** Anpasse Claude-Prompt in derselben Datei
+
+## 🔍 Troubleshooting
+
+**Chat lädt nicht?** → Prüfe Supabase-Verbindung und Environment Variables
+**KI antwortet nicht?** → Prüfe Anthropic API Key und Konsolenlogs
+**Auth funktioniert nicht?** → Prüfe Supabase Auth Settings
+
+---
+
+Erstellt mit ❤️ für kollaborative Teams
