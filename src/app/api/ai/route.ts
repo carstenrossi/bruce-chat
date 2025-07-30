@@ -126,7 +126,7 @@ Antworte hilfsreich, freundlich und auf Deutsch. Halte deine Antwort prägnant u
       model: string;
       max_tokens: number;
       temperature: number;
-      messages: Array<{ role: string; content: string }>;
+      messages: Array<{ role: 'user' | 'assistant'; content: string }>;
       tools?: Array<{
         type: string;
         name: string;
