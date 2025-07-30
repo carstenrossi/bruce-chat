@@ -127,14 +127,32 @@ export default function ChatPage() {
                   <div className="text-sm">
                     {message.is_ai_response && message.content.includes('[') && message.content.includes('](') ? (
                       // Rendere AI Nachrichten mit Markdown-Links
-                      <div
-                        dangerouslySetInnerHTML={{
-                          __html: message.content
-                            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">$1</a>')
-                            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                            .replace(/\n/g, '<br />')
-                        }}
-                      />
+                      <div className="whitespace-pre-wrap">
+                        {message.content.split(/(\[([^\]]+)\]\([^)]+\))/).map((part, index) => {
+                          // Prüfe ob es ein Markdown Link ist
+                          const linkMatch = part.match(/\[([^\]]+)\]\(([^)]+)\)/);
+                          if (linkMatch) {
+                            return (
+                              <a
+                                key={index}
+                                href={linkMatch[2]}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 underline"
+                              >
+                                {linkMatch[1]}
+                              </a>
+                            );
+                          }
+                          // Rendere Bold Text
+                          return part.split(/(\*\*[^*]+\*\*)/).map((textPart, textIndex) => {
+                            if (textPart.startsWith('**') && textPart.endsWith('**')) {
+                              return <strong key={`${index}-${textIndex}`}>{textPart.slice(2, -2)}</strong>;
+                            }
+                            return <span key={`${index}-${textIndex}`}>{textPart}</span>;
+                          });
+                        })}
+                      </div>
                     ) : (
                       <p>{message.content}</p>
                     )}

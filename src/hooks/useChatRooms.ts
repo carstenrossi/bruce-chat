@@ -17,6 +17,32 @@ export function useChatRooms(user: User | null) {
       return;
     }
 
+    const createDefaultRoom = async (): Promise<string | null> => {
+      try {
+        const { data, error } = await supabase
+          .from('chat_rooms')
+          .insert({
+            name: 'Allgemeiner Chat',
+            description: 'Der Hauptchatroom für alle Team-Mitglieder',
+            created_by: user.id,
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Fehler beim Erstellen des Standard-Raums:', error);
+          return null;
+        }
+
+        setChatRooms([data]);
+        setCurrentRoomId(data.id);
+        return data.id;
+      } catch (error) {
+        console.error('Fehler beim Erstellen des Standard-Raums:', error);
+        return null;
+      }
+    };
+
     const fetchChatRooms = async () => {
       // Lade alle Chat-Räume
       const { data, error } = await supabase
@@ -42,34 +68,6 @@ export function useChatRooms(user: User | null) {
 
     fetchChatRooms();
   }, [user, supabase]);
-
-  const createDefaultRoom = async (): Promise<string | null> => {
-    if (!user) return null;
-
-    try {
-      const { data, error } = await supabase
-        .from('chat_rooms')
-        .insert({
-          name: 'Allgemeiner Chat',
-          description: 'Der Hauptchatroom für alle Team-Mitglieder',
-          created_by: user.id,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Fehler beim Erstellen des Standard-Raums:', error);
-        return null;
-      }
-
-      setChatRooms([data]);
-      setCurrentRoomId(data.id);
-      return data.id;
-    } catch (error) {
-      console.error('Fehler beim Erstellen des Standard-Raums:', error);
-      return null;
-    }
-  };
 
   const createChatRoom = async (name: string, description?: string): Promise<boolean> => {
     if (!user) return false;

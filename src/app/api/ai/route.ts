@@ -122,7 +122,26 @@ Antworte hilfsreich, freundlich und auf Deutsch. Halte deine Antwort prägnant u
 }`;
 
     // Claude API Aufruf mit optionaler Web Search
-    const messageParams: any = {
+    interface MessageParams {
+      model: string;
+      max_tokens: number;
+      temperature: number;
+      messages: Array<{ role: string; content: string }>;
+      tools?: Array<{
+        type: string;
+        name: string;
+        max_uses: number;
+        user_location: {
+          type: string;
+          city: string;
+          region: string;
+          country: string;
+          timezone: string;
+        };
+      }>;
+    }
+    
+    const messageParams: MessageParams = {
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
       temperature: 0.7,
@@ -154,7 +173,7 @@ Antworte hilfsreich, freundlich und auf Deutsch. Halte deine Antwort prägnant u
 
     // Verarbeite die Response (kann mehrere Content-Blöcke bei Web Search enthalten)
     let aiResponse = '';
-    let citations: string[] = [];
+    const citations: string[] = [];
     
     if (response.content && Array.isArray(response.content)) {
       for (const content of response.content) {
@@ -162,7 +181,7 @@ Antworte hilfsreich, freundlich und auf Deutsch. Halte deine Antwort prägnant u
           aiResponse += content.text;
           
           // Extrahiere Zitate wenn vorhanden
-          if (content.citations && Array.isArray(content.citations)) {
+          if ('citations' in content && Array.isArray(content.citations)) {
             for (const citation of content.citations) {
               if (citation.type === 'web_search_result_location') {
                 const citationText = `[${citation.title}](${citation.url})`;
