@@ -68,6 +68,9 @@ CREATE POLICY "Messages are viewable by everyone" ON messages
 CREATE POLICY "Authenticated users can insert messages" ON messages
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
+CREATE POLICY "Authenticated users can delete any message" ON messages
+  FOR DELETE USING (auth.role() = 'authenticated');
+
 -- 6. Trigger für updated_at Timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
