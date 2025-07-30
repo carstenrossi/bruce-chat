@@ -6,6 +6,7 @@ import { useChatRooms } from '@/hooks/useChatRooms';
 import { useRealtimeMessages } from '@/hooks/useRealtimeMessages';
 import AuthButton from '@/components/AuthButton';
 import ReactMarkdown from 'react-markdown';
+import jsPDF from 'jspdf';
 
 export default function ChatPage() {
   const { user, loading: authLoading } = useSupabaseAuth();
@@ -14,6 +15,7 @@ export default function ChatPage() {
   const { messages, loading: messagesLoading, sendMessage, clearMessages } = useRealtimeMessages(currentRoomId, user);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +51,54 @@ export default function ChatPage() {
     }
   };
 
+  const handleExportToPdf = () => {
+    if (messages.length === 0 || isExporting) return;
+
+    setIsExporting(true);
+
+    try {
+      const doc = new jsPDF();
+      let y = 15; // Startposition auf der Y-Achse
+      const pageHeight = doc.internal.pageSize.height;
+      const margin = 10;
+
+      doc.setFont('Helvetica', 'bold');
+      doc.text('Bruce Chat - Chat-Protokoll', margin, y);
+      y += 10;
+
+      messages.forEach(message => {
+        if (y > pageHeight - margin) {
+          doc.addPage();
+          y = margin;
+        }
+
+        const timestamp = new Date(message.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+        const author = `${message.author_name}${message.is_ai_response ? ' (KI)' : ''}`;
+        
+        doc.setFont('Helvetica', 'bold');
+        const header = `${author} (${timestamp}):`;
+        doc.text(header, margin, y);
+        y += 6;
+
+        doc.setFont('Helvetica', 'normal');
+        // `splitTextToSize` bricht den Text automatisch um
+        const contentLines = doc.splitTextToSize(message.content, 180);
+        doc.text(contentLines, margin, y);
+        
+        y += (contentLines.length * 5) + 5; // Abstand zur nächsten Nachricht
+      });
+
+      const date = new Date().toISOString().split('T')[0];
+      doc.save(`bruce-chat-export-${date}.pdf`);
+
+    } catch (error) {
+      console.error("Fehler beim Erstellen des PDFs:", error);
+      alert("Entschuldigung, beim Erstellen des PDFs ist ein Fehler aufgetreten.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (authLoading || roomsLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -70,14 +120,24 @@ export default function ChatPage() {
             <p className="text-sm text-gray-600">Kollaborativer Chat mit KI-Integration</p>
           </div>
           <div className="flex gap-2 items-center">
-            {user && messages.length > 0 && (
-              <button
-                onClick={handleClearChat}
-                className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
-                title="Chat leeren"
-              >
-                🗑️ Chat leeren
-              </button>
+             {user && messages.length > 0 && (
+              <>
+                <button
+                  onClick={handleExportToPdf}
+                  className="px-4 py-2 text-sm font-medium text-blue-600 bg-white border border-blue-300 rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isExporting}
+                  title="Chat als PDF exportieren"
+                >
+                  {isExporting ? 'Exportiere...' : '📥 PDF Export'}
+                </button>
+                <button
+                  onClick={handleClearChat}
+                  className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                  title="Chat leeren"
+                >
+                  🗑️ Chat leeren
+                </button>
+              </>
             )}
             <AuthButton />
           </div>
@@ -85,7 +145,7 @@ export default function ChatPage() {
       </header>
 
       {/* Chat Messages */}
-      <main className="flex-1 overflow-y-auto p-4">
+      <main className="flex-1 overflow-y-auto p-4" id="chat-container">
         <div className="max-w-4xl mx-auto space-y-4">
           {messagesLoading ? (
             <div className="text-center text-gray-500">
