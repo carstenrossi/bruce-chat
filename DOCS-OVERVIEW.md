@@ -63,7 +63,9 @@ src/
 2. **React 19 StrictMode** - Gelöst durch Debouncing und AbortController
 3. **Realtime Duplikate** - Gelöst durch Message-ID Checks
 
-## Tech-Stack-Agnostische Dokumentation
+## Re-Use Documentation (für andere Systeme)
+
+Diese Dokumentationen befinden sich im Ordner `Re-Use Documentation/`:
 
 ### 6. **ARCHITECTURE-SPEC.md**
 - **Zweck:** Technologie-unabhängige Architektur-Beschreibung

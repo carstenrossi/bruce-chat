@@ -12,10 +12,12 @@ Ein moderner Team-Chat mit integrierter Claude KI, die nur bei @mentions antwort
 
 ### Technische Dokumentation
 - **MULTI-USER-AI-BUG.md** - Kritischer Multi-User Bug und Lösung
-- **ARCHITECTURE-SPEC.md** - Tech-Stack-agnostische Architektur
-- **AI-IMPLEMENTATION-PROMPT.md** - Prompts für KI-gestützte Implementierung
-- **TECH-STACK-MIGRATION.md** - Migration zu anderen Tech-Stacks
 - **DOCS-OVERVIEW.md** - Übersicht aller Dokumentationen
+
+### Re-Use Documentation (für andere Systeme)
+- **Re-Use Documentation/ARCHITECTURE-SPEC.md** - Tech-Stack-agnostische Architektur
+- **Re-Use Documentation/AI-IMPLEMENTATION-PROMPT.md** - Prompts für KI-gestützte Implementierung
+- **Re-Use Documentation/TECH-STACK-MIGRATION.md** - Migration zu anderen Tech-Stacks
 
 ## ✨ Features
 
