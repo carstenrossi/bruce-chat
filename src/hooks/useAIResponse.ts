@@ -9,6 +9,18 @@ const pendingAIRequests = new Set<string>();
 // KRITISCH: Globaler State für verarbeitete Messages pro Room (überlebt Component Re-Mounts)
 const processedMessagesPerRoom = new Map<string, Set<string>>();
 
+// Atomare Funktion zum Prüfen und Sperren in einem Schritt
+function tryLockMessage(messageId: string): boolean {
+  console.log(`🔍 tryLockMessage(${messageId}) - Current locks: ${Array.from(pendingAIRequests).join(', ')}`);
+  if (pendingAIRequests.has(messageId)) {
+    console.log(`❌ Message ${messageId} ist bereits gesperrt`);
+    return false; // Bereits gesperrt
+  }
+  pendingAIRequests.add(messageId);
+  console.log(`✅ Message ${messageId} erfolgreich gesperrt. New locks: ${Array.from(pendingAIRequests).join(', ')}`);
+  return true; // Erfolgreich gesperrt
+}
+
 export function useAIResponse(messages: Message[], chatRoomId: string) {
 
   useEffect(() => {
@@ -40,18 +52,17 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
       !latestMessage.is_ai_response &&
       latestMessage.mentioned_ai
     ) {
-      // KRITISCH: Sofort sperren gegen Race Conditions
-      if (processedMessages.has(latestMessage.id)) {
-        console.log(`🔒 Message ${latestMessage.id} bereits verarbeitet (Race Condition verhindert)`);
+      // KRITISCH: Atomare Lock-Operation verhindert Race Conditions
+      if (!tryLockMessage(latestMessage.id)) {
+        console.log(`🔒 Message ${latestMessage.id} wird bereits verarbeitet (Race Condition verhindert)`);
         return;
       }
+      console.log(`🔐 Message ${latestMessage.id} erfolgreich gesperrt`);
       
-      // KRITISCH: Sofort als verarbeitet markieren, um Race Conditions zu verhindern
-      processedMessages.add(latestMessage.id);
-      
-      // Prüfen, ob diese Nachricht bereits in Bearbeitung ist oder eine Antwort hat
-      if (pendingAIRequests.has(latestMessage.id)) {
-        console.log(`⏳ AI-Anfrage für Nachricht ${latestMessage.id} ist bereits in Bearbeitung.`);
+      // Sekundäre Prüfung mit processedMessages
+      if (processedMessages.has(latestMessage.id)) {
+        console.log(`✅ Message ${latestMessage.id} wurde bereits verarbeitet`);
+        pendingAIRequests.delete(latestMessage.id); // Cleanup
         return;
       }
 
@@ -62,11 +73,12 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
 
       if (hasResponse) {
         console.log(`✅ Antwort für Nachricht ${latestMessage.id} bereits im Chat vorhanden.`);
+        pendingAIRequests.delete(latestMessage.id); // Cleanup da keine Anfrage nötig
         return;
       }
       
-      // Wenn keine Antwort existiert und nichts in Bearbeitung ist, Anfrage starten
-      pendingAIRequests.add(latestMessage.id);
+      // Zur processedMessages hinzufügen, um zukünftige Duplikate zu verhindern
+      processedMessages.add(latestMessage.id);
       console.log(`🤖 Triggering AI response für Nachricht: ${latestMessage.id}`);
 
       fetch('/api/ai', {
