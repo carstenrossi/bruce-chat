@@ -55,7 +55,16 @@ export function useRealtimeMessages(chatRoomId: string, user: User | null) {
           // Verhindere, dass die eigene Nachricht doppelt hinzugefügt wird
           // ABER: AI-Nachrichten (author_id = null) sollen IMMER angezeigt werden
           if (newMessage.author_id !== user?.id || newMessage.is_ai_response) {
-            setMessages(prev => [...prev, newMessage]);
+            setMessages(prev => {
+              // Prüfe ob diese Message bereits existiert (durch optimistisches Update)
+              const messageExists = prev.some(m => m.id === newMessage.id);
+              if (messageExists) {
+                console.log(`📨 Realtime: Message ${newMessage.id} existiert bereits, überspringe`);
+                return prev;
+              }
+              console.log(`📨 Realtime: Füge neue Message ${newMessage.id} hinzu (is_ai: ${newMessage.is_ai_response})`);
+              return [...prev, newMessage];
+            });
           }
         }
       )

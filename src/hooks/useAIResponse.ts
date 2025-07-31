@@ -12,6 +12,9 @@ const processedMessagesPerRoom = new Map<string, Set<string>>();
 // Globaler AbortController Store für Hook-Instanzen
 const abortControllers = new Map<string, AbortController>();
 
+// Globaler Debounce-Timer Store für Messages
+const messageDebounceTimers = new Map<string, NodeJS.Timeout>();
+
 // Atomare Funktion zum Prüfen und Sperren in einem Schritt
 function tryLockMessage(messageId: string): boolean {
   console.log(`🔍 tryLockMessage(${messageId}) - Current locks: ${Array.from(pendingAIRequests).join(', ')}`);
@@ -77,45 +80,65 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
       }
       console.log(`🤖 Triggering AI response für Nachricht: ${message.id} (Instance: ${instanceId})`);
 
-      // Erstelle einen AbortController für diese Anfrage
-      const abortController = new AbortController();
-      const abortKey = `${chatRoomId}_${message.id}`;
-      
-      // Cancel vorherige Anfrage für dieselbe Message falls vorhanden
-      if (abortControllers.has(abortKey)) {
-        console.log(`🚫 Cancelling previous request for ${abortKey}`);
-        abortControllers.get(abortKey)?.abort();
+      // Clear any existing debounce timer for this message
+      if (messageDebounceTimers.has(message.id)) {
+        clearTimeout(messageDebounceTimers.get(message.id));
       }
-      abortControllers.set(abortKey, abortController);
 
-      fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messageId: message.id,
-          chatRoomId: chatRoomId,
-        }),
-        signal: abortController.signal,
-      })
-      .then(async (response) => {
-        if (!response.ok) {
-          console.error('Fehler bei KI-Antwort:', await response.text());
-        } else {
-          console.log(`✅ AI-Anfrage für ${message.id} erfolgreich abgeschlossen. (Instance: ${instanceId})`);
+      // Debounce die Anfrage um Race Conditions zu vermeiden
+      const debounceTimer = setTimeout(() => {
+        console.log(`⏱️ Debounce abgelaufen, starte AI-Request für ${message.id}`);
+        
+        // Double-Check: Prüfe nochmal ob noch nicht verarbeitet
+        if (!pendingAIRequests.has(message.id)) {
+          console.log(`❌ Message ${message.id} wurde während Debounce bereits verarbeitet`);
+          messageDebounceTimers.delete(message.id);
+          return;
         }
-      })
-      .catch((error) => {
-        if (error.name === 'AbortError') {
-          console.log(`⏹️ AI-Anfrage für ${message.id} wurde abgebrochen (Instance: ${instanceId})`);
-        } else {
-          console.error('Fehler beim Abrufen der KI-Antwort:', error);
+
+        // Erstelle einen AbortController für diese Anfrage
+        const abortController = new AbortController();
+        const abortKey = `${chatRoomId}_${message.id}`;
+        
+        // Cancel vorherige Anfrage für dieselbe Message falls vorhanden
+        if (abortControllers.has(abortKey)) {
+          console.log(`🚫 Cancelling previous request for ${abortKey}`);
+          abortControllers.get(abortKey)?.abort();
         }
-      })
-      .finally(() => {
-        // Anfrage aus dem Set entfernen, egal ob erfolgreich oder nicht
-        pendingAIRequests.delete(message.id);
-        abortControllers.delete(abortKey);
-      });
+        abortControllers.set(abortKey, abortController);
+
+        fetch('/api/ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messageId: message.id,
+            chatRoomId: chatRoomId,
+          }),
+          signal: abortController.signal,
+        })
+        .then(async (response) => {
+          if (!response.ok) {
+            console.error('Fehler bei KI-Antwort:', await response.text());
+          } else {
+            console.log(`✅ AI-Anfrage für ${message.id} erfolgreich abgeschlossen. (Instance: ${instanceId})`);
+          }
+        })
+        .catch((error) => {
+          if (error.name === 'AbortError') {
+            console.log(`⏹️ AI-Anfrage für ${message.id} wurde abgebrochen (Instance: ${instanceId})`);
+          } else {
+            console.error('Fehler beim Abrufen der KI-Antwort:', error);
+          }
+        })
+        .finally(() => {
+          // Anfrage aus dem Set entfernen, egal ob erfolgreich oder nicht
+          pendingAIRequests.delete(message.id);
+          abortControllers.delete(abortKey);
+          messageDebounceTimers.delete(message.id);
+        });
+      }, 300); // 300ms Debounce
+
+      messageDebounceTimers.set(message.id, debounceTimer);
     }
   }, [messages, chatRoomId, instanceId]); // Messages-Dependency ist OK, weil wir frühe Returns für AI-Messages haben
   
@@ -130,6 +153,12 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
           controller.abort();
         }
       });
+      // Clear alle Debounce Timer
+      messageDebounceTimers.forEach((timer, messageId) => {
+        console.log(`⏱️ Clearing debounce timer for message: ${messageId}`);
+        clearTimeout(timer);
+      });
+      messageDebounceTimers.clear();
     };
   }, [chatRoomId, instanceId]);
 
