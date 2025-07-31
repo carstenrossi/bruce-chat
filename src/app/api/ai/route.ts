@@ -6,6 +6,9 @@ import { cookies } from 'next/headers';
 // Verhindere Caching für diese API-Route - jede Anfrage muss frisch verarbeitet werden
 export const dynamic = 'force-dynamic';
 
+// Server-seitiger In-Memory Store für laufende Anfragen
+const processingRequests = new Set<string>();
+
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
@@ -26,6 +29,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ERSTE PRÜFUNG: Check ob Request bereits läuft
+    if (processingRequests.has(messageId)) {
+      console.log(`⚠️ [AI API] Request für ${messageId} wird bereits bearbeitet. Abbruch.`);
+      return NextResponse.json({ success: true, message: 'Wird bereits bearbeitet.' });
+    }
+    
+    // Request als "in Bearbeitung" markieren
+    processingRequests.add(messageId);
+    console.log(`🔒 [AI API] Request ${messageId} gesperrt. Active requests: ${processingRequests.size}`);
+
     const cookieStore = await cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -44,15 +57,17 @@ export async function POST(request: NextRequest) {
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
+      processingRequests.delete(messageId); // Cleanup bei frühem Exit
       return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
     }
 
-    // IDEMPOTENCY CHECK: Prüfen, ob für diese Nachricht bereits eine KI-Antwort existiert
+    // ZWEITE PRÜFUNG: Check in DB ob bereits eine Antwort existiert
     const { data: existingResponse, error: checkError } = await supabase
       .from('messages')
-      .select('id')
+      .select('id, created_at')
       .eq('parent_message_id', messageId)
       .eq('is_ai_response', true)
+      .order('created_at', { ascending: false })
       .limit(1);
 
     if (checkError) {
@@ -61,7 +76,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (existingResponse && existingResponse.length > 0) {
-      console.log(`✅ KI-Antwort für Nachricht ${messageId} existiert bereits. Überspringe.`);
+      const timeSinceResponse = Date.now() - new Date(existingResponse[0].created_at).getTime();
+      console.log(`✅ KI-Antwort für Nachricht ${messageId} existiert bereits (erstellt vor ${timeSinceResponse}ms). Überspringe.`);
       return NextResponse.json({ success: true, message: 'Antwort existiert bereits.' });
     }
 
@@ -173,10 +189,17 @@ Bitte antworte jetzt darauf.`;
       return NextResponse.json({ error: 'Fehler beim Speichern der KI-Antwort' }, { status: 500 });
     }
 
+    console.log(`✅ [AI API] Request ${messageId} erfolgreich abgeschlossen.`);
     return NextResponse.json({ success: true, response: aiResponse });
 
   } catch (error) {
     console.error('KI API Fehler:', error);
     return NextResponse.json({ error: 'Fehler beim Generieren der KI-Antwort' }, { status: 500 });
+  } finally {
+    // WICHTIG: Request aus dem Processing-Set entfernen
+    if (messageId) {
+      processingRequests.delete(messageId);
+      console.log(`🔓 [AI API] Request ${messageId} entsperrt. Active requests: ${processingRequests.size}`);
+    }
   }
 }
