@@ -8,14 +8,16 @@ import AuthButton from '@/components/AuthButton';
 import ReactMarkdown from 'react-markdown';
 import jsPDF from 'jspdf';
 
-// Hilfsfunktion, um Markdown zu reinigen und Links zu extrahieren
-const cleanMarkdownForPdf = (markdown: string): string => {
-  return markdown
+// Hilfsfunktion, um Markdown zu reinigen, Links zu extrahieren und nicht-darstellbare Zeichen zu entfernen
+const cleanTextForPdf = (text: string): string => {
+  return text
     // Ersetze Markdown-Links durch "Titel: URL"
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1: $2')
     // Entferne fette Schrift und andere Markdown-Formatierungen
     .replace(/\*\*(.*?)\*\*/g, '$1')
-    .replace(/\*(.*?)\*/g, '$1');
+    .replace(/\*(.*?)\*/g, '$1')
+    // Entferne Emojis und andere komplexe Unicode-Zeichen, die jspdf nicht standardmäßig unterstützt
+    .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '');
 };
 
 export default function ChatPage() {
@@ -60,36 +62,44 @@ export default function ChatPage() {
       let y = 15;
       const pageHeight = doc.internal.pageSize.height;
       const margin = 10;
-      const lineHeight = 5; // Höhe einer Textzeile
-      const lineSpacing = 2; // Abstand zwischen den Zeilen
+      const lineHeight = 7; // Mehr Platz pro Zeile
 
-      doc.setFont('Helvetica', 'bold');
-      doc.text('Bruce Chat - Chat-Protokoll', margin, y);
-      y += 10;
+      const printLine = (text: string, font: 'bold' | 'normal' = 'normal') => {
+        const lines = doc.splitTextToSize(text, doc.internal.pageSize.width - margin * 2);
+        doc.setFont('Helvetica', font);
+
+        lines.forEach((line: string) => {
+          if (y > pageHeight - margin) {
+            doc.addPage();
+            y = margin;
+          }
+          doc.text(line, margin, y);
+          y += lineHeight;
+        });
+      };
+
+      printLine('Bruce Chat - Chat-Protokoll', 'bold');
+      y += lineHeight;
 
       messages.forEach(message => {
         const timestamp = new Date(message.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
         const author = `${message.author_name}${message.is_ai_response ? ' (KI)' : ''}`;
         const header = `${author} (${timestamp}):`;
-        const cleanedContent = cleanMarkdownForPdf(message.content);
-        
-        const headerLines = doc.splitTextToSize(header, 180);
-        const contentLines = doc.splitTextToSize(cleanedContent, 180);
-        
-        const blockHeight = (headerLines.length + contentLines.length) * lineHeight + lineSpacing * 2;
+        const cleanedContent = cleanTextForPdf(message.content);
 
-        if (y + blockHeight > pageHeight - margin) {
-          doc.addPage();
-          y = margin;
+        // Prüfen, ob der gesamte Block auf die Seite passt, sonst neue Seite beginnen
+        const headerLines = doc.splitTextToSize(header, doc.internal.pageSize.width - margin * 2);
+        const contentLines = doc.splitTextToSize(cleanedContent, doc.internal.pageSize.width - margin * 2);
+        const blockHeight = (headerLines.length + contentLines.length) * lineHeight;
+
+        if (y + blockHeight > pageHeight - margin && y > 20) { // y > 20 verhindert Seitenumbruch direkt nach Titel
+            doc.addPage();
+            y = margin;
         }
-
-        doc.setFont('Helvetica', 'bold');
-        doc.text(headerLines, margin, y);
-        y += headerLines.length * lineHeight + lineSpacing;
         
-        doc.setFont('Helvetica', 'normal');
-        doc.text(contentLines, margin, y);
-        y += contentLines.length * lineHeight + lineSpacing + 5; // Extra Abstand zum nächsten Block
+        printLine(header, 'bold');
+        printLine(cleanedContent, 'normal');
+        y += lineHeight / 2; // Extra Abstand nach jeder Nachricht
       });
 
       const date = new Date().toISOString().split('T')[0];
