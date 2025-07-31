@@ -63,6 +63,23 @@ src/
 2. **React 19 StrictMode** - Gelöst durch Debouncing und AbortController
 3. **Realtime Duplikate** - Gelöst durch Message-ID Checks
 
+## Tech-Stack-Agnostische Dokumentation
+
+### 6. **ARCHITECTURE-SPEC.md**
+- **Zweck:** Technologie-unabhängige Architektur-Beschreibung
+- **Zielgruppe:** Entwickler, die mit anderem Tech-Stack implementieren
+- **Inhalt:** Patterns, Flows, kritische Details, Security
+
+### 7. **AI-IMPLEMENTATION-PROMPT.md**
+- **Zweck:** Prompt-Templates für KI-gestützte Implementierung
+- **Zielgruppe:** Entwickler, die eine KI zur Implementierung nutzen
+- **Inhalt:** Verschiedene Prompt-Varianten, Checkpoints
+
+### 8. **TECH-STACK-MIGRATION.md**
+- **Zweck:** Konkrete Migrations-Beispiele für verschiedene Stacks
+- **Zielgruppe:** Teams mit bestehender Infrastruktur
+- **Inhalt:** Docker, Laravel, Django, Spring Boot Beispiele
+
 ## Nächste Schritte
 
 - [ ] Vercel Production Deployment

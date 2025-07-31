@@ -3,11 +3,19 @@
 Ein moderner Team-Chat mit integrierter Claude KI, die nur bei @mentions antwortet.
 
 ## 📚 Dokumentation
+
+### Setup & Deployment
 - **README.md** (diese Datei) - Übersicht und Quick Start
 - **SETUP.md** - Detaillierte lokale Entwicklungsanleitung
 - **deploy-instructions.md** - Schritt-für-Schritt Deployment Guide
 - **DEPLOYMENT-STATUS.md** - Entwicklungsstatus und Fortschritt
-- **MULTI-USER-AI-BUG.md** - Wichtige Dokumentation zum Multi-User Bug
+
+### Technische Dokumentation
+- **MULTI-USER-AI-BUG.md** - Kritischer Multi-User Bug und Lösung
+- **ARCHITECTURE-SPEC.md** - Tech-Stack-agnostische Architektur
+- **AI-IMPLEMENTATION-PROMPT.md** - Prompts für KI-gestützte Implementierung
+- **TECH-STACK-MIGRATION.md** - Migration zu anderen Tech-Stacks
+- **DOCS-OVERVIEW.md** - Übersicht aller Dokumentationen
 
 ## ✨ Features
 
@@ -111,7 +119,7 @@ src/
 ## 🤖 KI-Integration
 
 - **Mentions:** `@bruce` oder `@ki` triggern KI-Antworten
-- **Kontext:** Letzte 50 menschliche Nachrichten (keine KI-Loops)
+- **Kontext:** Letzte 50 Nachrichten (inkl. eigene KI-Antworten)
 - **Multi-User Safe:** Nur der Message-Autor triggert KI-Antworten
 - **Debounced:** 300ms Verzögerung verhindert Race Conditions
 - **Persistent:** Alle Antworten werden gespeichert
