@@ -38,57 +38,48 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
     }
     const processedMessages = processedMessagesPerRoom.get(chatRoomId)!;
 
-    const latestMessage = messages[messages.length - 1];
-    console.log(`📊 Latest message: id=${latestMessage?.id}, is_ai=${latestMessage?.is_ai_response}, mentioned=${latestMessage?.mentioned_ai}`);
-    console.log(`📊 Processed messages: ${Array.from(processedMessages).join(', ')}`);
-    
-    // KRITISCH: Nur auf neue User-Messages reagieren, nicht auf AI-Antworten!
-    if (!latestMessage || latestMessage.is_ai_response) return;
-    
-    // KRITISCH: Ignoriere temporäre/optimistic Messages (temp_ prefix)
-    if (latestMessage.id.startsWith('temp_')) {
-      console.log(`⏭️ Ignoring optimistic message: ${latestMessage.id}`);
-      return;
-    }
-    
-    // Prüfen, ob eine neue, vom Benutzer erstellte Erwähnung vorliegt
-    if (
-      latestMessage &&
-      !latestMessage.is_ai_response &&
-      latestMessage.mentioned_ai
-    ) {
-      // KRITISCH: Atomare Lock-Operation verhindert Race Conditions
-      if (!tryLockMessage(latestMessage.id)) {
-        console.log(`🔒 Message ${latestMessage.id} wird bereits verarbeitet (Race Condition verhindert)`);
-        return;
-      }
-      console.log(`🔐 Message ${latestMessage.id} erfolgreich gesperrt`);
-      
-      // Sekundäre Prüfung mit processedMessages
-      if (processedMessages.has(latestMessage.id)) {
-        console.log(`✅ Message ${latestMessage.id} wurde bereits verarbeitet`);
-        pendingAIRequests.delete(latestMessage.id); // Cleanup
-        return;
-      }
+    // WICHTIG: Finde ALLE neuen User-Messages mit @mentions, nicht nur die letzte
+    const newUserMessagesWithMentions = messages.filter(msg => 
+      !msg.is_ai_response && 
+      msg.mentioned_ai && 
+      !msg.id.startsWith('temp_') &&
+      !processedMessages.has(msg.id) &&
+      !pendingAIRequests.has(msg.id)
+    );
 
-      // Prüfen, ob in der aktuellen Nachrichtenliste bereits eine Antwort existiert.
+    console.log(`📊 Found ${newUserMessagesWithMentions.length} new user messages with mentions`);
+    console.log(`📊 Processed messages: ${Array.from(processedMessages).join(', ')}`);
+    console.log(`📊 Pending requests: ${Array.from(pendingAIRequests).join(', ')}`);
+    
+    // Verarbeite nur neue Messages
+    for (const message of newUserMessagesWithMentions) {
+      console.log(`🎯 Processing new mention: ${message.id}`);
+      
+      // KRITISCH: Atomare Lock-Operation verhindert Race Conditions
+      if (!tryLockMessage(message.id)) {
+        console.log(`🔒 Message ${message.id} wird bereits verarbeitet (Race Condition verhindert)`);
+        continue;
+      }
+      console.log(`🔐 Message ${message.id} erfolgreich gesperrt`);
+      
+      // Zur processedMessages hinzufügen, um zukünftige Duplikate zu verhindern
+      processedMessages.add(message.id);
+      
+      // Prüfen, ob in der aktuellen Nachrichtenliste bereits eine Antwort existiert
       const hasResponse = messages.some(
-        (msg) => msg.parent_message_id === latestMessage.id && msg.is_ai_response
+        (msg) => msg.parent_message_id === message.id && msg.is_ai_response
       );
 
       if (hasResponse) {
-        console.log(`✅ Antwort für Nachricht ${latestMessage.id} bereits im Chat vorhanden.`);
-        pendingAIRequests.delete(latestMessage.id); // Cleanup da keine Anfrage nötig
-        return;
+        console.log(`✅ Antwort für Nachricht ${message.id} bereits im Chat vorhanden.`);
+        pendingAIRequests.delete(message.id); // Cleanup da keine Anfrage nötig
+        continue;
       }
-      
-      // Zur processedMessages hinzufügen, um zukünftige Duplikate zu verhindern
-      processedMessages.add(latestMessage.id);
-      console.log(`🤖 Triggering AI response für Nachricht: ${latestMessage.id} (Instance: ${instanceId})`);
+      console.log(`🤖 Triggering AI response für Nachricht: ${message.id} (Instance: ${instanceId})`);
 
       // Erstelle einen AbortController für diese Anfrage
       const abortController = new AbortController();
-      const abortKey = `${chatRoomId}_${latestMessage.id}`;
+      const abortKey = `${chatRoomId}_${message.id}`;
       
       // Cancel vorherige Anfrage für dieselbe Message falls vorhanden
       if (abortControllers.has(abortKey)) {
@@ -101,7 +92,7 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messageId: latestMessage.id,
+          messageId: message.id,
           chatRoomId: chatRoomId,
         }),
         signal: abortController.signal,
@@ -110,19 +101,19 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
         if (!response.ok) {
           console.error('Fehler bei KI-Antwort:', await response.text());
         } else {
-          console.log(`✅ AI-Anfrage für ${latestMessage.id} erfolgreich abgeschlossen. (Instance: ${instanceId})`);
+          console.log(`✅ AI-Anfrage für ${message.id} erfolgreich abgeschlossen. (Instance: ${instanceId})`);
         }
       })
       .catch((error) => {
         if (error.name === 'AbortError') {
-          console.log(`⏹️ AI-Anfrage für ${latestMessage.id} wurde abgebrochen (Instance: ${instanceId})`);
+          console.log(`⏹️ AI-Anfrage für ${message.id} wurde abgebrochen (Instance: ${instanceId})`);
         } else {
           console.error('Fehler beim Abrufen der KI-Antwort:', error);
         }
       })
       .finally(() => {
         // Anfrage aus dem Set entfernen, egal ob erfolgreich oder nicht
-        pendingAIRequests.delete(latestMessage.id);
+        pendingAIRequests.delete(message.id);
         abortControllers.delete(abortKey);
       });
     }
