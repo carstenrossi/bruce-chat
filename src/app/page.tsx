@@ -8,7 +8,6 @@ import AuthButton from '@/components/AuthButton';
 import ReactMarkdown from 'react-markdown';
 import jsPDF from 'jspdf';
 
-// Hilfsfunktion, um Markdown zu reinigen, Links zu extrahieren und nicht-darstellbare Zeichen zu entfernen
 const cleanTextForPdf = (text: string): string => {
   return text
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1: $2')
@@ -25,8 +24,15 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Passt die Höhe der Textarea an den Inhalt an
+  // Effekt für das automatische Scrollen
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
+
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -37,13 +43,10 @@ export default function ChatPage() {
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!newMessage.trim() || !user || sending) return;
-    
     setSending(true);
     const content = newMessage;
     setNewMessage('');
-    
     const success = await sendMessage(content);
-    
     if (!success) {
       setNewMessage(content);
       alert('Fehler beim Senden der Nachricht. Bitte versuche es erneut.');
@@ -70,7 +73,6 @@ export default function ChatPage() {
   };
 
   const handleExportToPdf = () => {
-    // ... (restliche Funktion bleibt unverändert)
     if (messages.length === 0 || isExporting) return;
     setIsExporting(true);
     try {
@@ -133,7 +135,6 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 p-4">
-        {/* ... (Header bleibt unverändert) ... */}
          <div className="max-w-4xl mx-auto flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Bruce Chat 💬</h1>
@@ -163,8 +164,7 @@ export default function ChatPage() {
           </div>
         </div>
       </header>
-      <main className="flex-1 overflow-y-auto p-4" id="chat-container">
-       {/* ... (Chat-Nachrichten bleiben unverändert) ... */}
+      <main ref={chatContainerRef} className="flex-1 overflow-y-auto p-4">
         <div className="max-w-4xl mx-auto space-y-4">
           {messagesLoading ? (
             <div className="text-center text-gray-500">
