@@ -7,14 +7,18 @@ import type { Message } from '@/lib/supabase';
 const pendingAIRequests = new Set<string>();
 
 export function useAIResponse(messages: Message[], chatRoomId: string) {
-  // Wir verwenden einen Ref, um sicherzustellen, dass wir nicht auf veraltete Message-Listen zugreifen
-  const messagesRef = useRef(messages);
-  messagesRef.current = messages;
+  const lastProcessedMessageIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!chatRoomId || messages.length === 0) return;
 
     const latestMessage = messages[messages.length - 1];
+    
+    // KRITISCH: Nur auf neue User-Messages reagieren, nicht auf AI-Antworten!
+    if (!latestMessage || latestMessage.is_ai_response) return;
+    
+    // Verhindere mehrfache Verarbeitung derselben Message
+    if (lastProcessedMessageIdRef.current === latestMessage.id) return;
 
     // Prüfen, ob eine neue, vom Benutzer erstellte Erwähnung vorliegt
     if (
@@ -29,17 +33,19 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
       }
 
       // Prüfen, ob in der aktuellen Nachrichtenliste bereits eine Antwort existiert.
-      const hasResponse = messagesRef.current.some(
+      const hasResponse = messages.some(
         (msg) => msg.parent_message_id === latestMessage.id && msg.is_ai_response
       );
 
       if (hasResponse) {
         console.log(`✅ Antwort für Nachricht ${latestMessage.id} bereits im Chat vorhanden.`);
+        lastProcessedMessageIdRef.current = latestMessage.id; // Markiere als verarbeitet
         return;
       }
       
       // Wenn keine Antwort existiert und nichts in Bearbeitung ist, Anfrage starten
       pendingAIRequests.add(latestMessage.id);
+      lastProcessedMessageIdRef.current = latestMessage.id; // Markiere als verarbeitet
       console.log(`🤖 Triggering AI response für Nachricht: ${latestMessage.id}`);
 
       fetch('/api/ai', {
@@ -65,5 +71,5 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
         pendingAIRequests.delete(latestMessage.id);
       });
     }
-  }, [messages, chatRoomId]);
+  }, [messages, chatRoomId]); // Messages-Dependency ist OK, weil wir frühe Returns für AI-Messages haben
 }
