@@ -3,9 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-// Diese Zeile ist die entscheidende Korrektur:
-// Sie zwingt Vercel, diese Funktion bei jeder Anfrage neu auszuführen
-// und niemals eine gecachte Antwort zu verwenden.
+// Verhindere Caching für diese API-Route - jede Anfrage muss frisch verarbeitet werden
 export const dynamic = 'force-dynamic';
 
 const anthropic = new Anthropic({
@@ -47,7 +45,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
     }
 
-    // IDEMPOTENCY CHECK
+    // IDEMPOTENCY CHECK: Prüfen, ob für diese Nachricht bereits eine KI-Antwort existiert
     const { data: existingResponse, error: checkError } = await supabase
       .from('messages')
       .select('id')
@@ -65,7 +63,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: 'Antwort existiert bereits.' });
     }
 
-    // KI-Logik
+    // KI-Logik ab hier...
     const { data: contextMessages, error: contextError } = await supabase
       .from('messages')
       .select('content, author_name, is_ai_response')
@@ -99,9 +97,19 @@ export async function POST(request: NextRequest) {
     
     const shouldSearch = /such|search|aktuell|news|heute|neueste/i.test(originalMessage.content);
 
-    const systemPrompt = `Du bist Bruce, ein hochentwickelter KI-Assistent...`; // Gekürzt zur Übersicht
+    const systemPrompt = `Du bist Bruce, ein hochentwickelter KI-Assistent in einem Team-Chat. Deine Hauptaufgabe ist es, präzise, hilfreiche und kohärente Antworten zu liefern. Halte dich strikt an die folgenden Verhaltensregeln:
+1. Vermeide Wiederholungen: Wiederhole niemals Informationen, die du oder ein anderer Benutzer bereits in den letzten Nachrichten erwähnt haben. Fasse dich kurz und bringe immer neue Aspekte oder Informationen ein.
+2. Sei selbstkritisch: Wenn ein Benutzer dich korrigiert oder auf einen Fehler in deiner vorherigen Antwort hinweist, akzeptiere die Korrektur. Behandle die Information des Benutzers als die neue Wahrheit. Argumentiere nicht dagegen.
+3. Baue auf dem Kontext auf: Nutze den gesamten Gesprächsverlauf, einschließlich deiner eigenen früheren Antworten, um den Faden der Konversation aufrechtzuerhalten und kontextbezogen zu antworten.
+4. Bleibe beim Thema: Konzentriere dich immer auf die letzte Frage oder Anweisung des Benutzers. Drifte nicht zu verwandten, aber irrelevanten Themen ab.
+5. Grundton: Antworte wie immer hilfsreich, freundlich und auf Deutsch. Du darfst Emojis verwenden, um deine Antworten natürlicher zu gestalten.`;
 
-    const userPrompt = `Hier ist der bisherige Chatverlauf: ...`; // Gekürzt zur Übersicht
+    const userPrompt = `Hier ist der bisherige Chatverlauf:
+---
+${conversationContext}
+---
+Ich (${originalMessage.author_name}) habe dich gerade erwähnt: "${originalMessage.content}"
+Bitte antworte jetzt darauf.`;
 
     const messageParams: Anthropic.MessageCreateParams = {
       model: 'claude-sonnet-4-20250514',
@@ -121,7 +129,49 @@ export async function POST(request: NextRequest) {
     const response = await anthropic.messages.create(messageParams);
     
     let aiResponse = '';
-    // ... (restlicher Code bleibt gleich)
+    const citations: string[] = [];
+    if (response.content && Array.isArray(response.content)) {
+      for (const content of response.content) {
+        if (content.type === 'text') {
+          aiResponse += content.text;
+          if ('citations' in content && Array.isArray(content.citations)) {
+            for (const citation of content.citations) {
+              if (citation.type === 'web_search_result_location') {
+                const citationText = `[${citation.title}](${citation.url})`;
+                if (!citations.includes(citationText)) {
+                  citations.push(citationText);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (citations.length > 0) {
+      aiResponse += '\n\n**Quellen:**\n' + citations.map((c, i) => `${i + 1}. ${c}`).join('\n');
+    }
+    
+    if (!aiResponse) {
+      aiResponse = 'Entschuldigung, ich konnte keine Antwort generieren.';
+    }
+
+    const { error: insertError } = await supabase.from('messages').insert({
+      content: aiResponse,
+      author_id: session.user.id,
+      author_name: 'Bruce (KI)',
+      chat_room_id: chatRoomId,
+      is_ai_response: true,
+      mentioned_ai: false,
+      parent_message_id: messageId,
+    });
+
+    if (insertError) {
+      console.error('Fehler beim Speichern der KI-Antwort:', insertError);
+      return NextResponse.json({ error: 'Fehler beim Speichern der KI-Antwort' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, response: aiResponse });
 
   } catch (error) {
     console.error('KI API Fehler:', error);
