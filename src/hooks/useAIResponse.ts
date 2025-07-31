@@ -24,15 +24,21 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
       return;
     }
     
-    // Verhindere mehrfache Verarbeitung derselben Message
-    if (lastProcessedMessageIdRef.current === latestMessage.id) return;
-
     // Prüfen, ob eine neue, vom Benutzer erstellte Erwähnung vorliegt
     if (
       latestMessage &&
       !latestMessage.is_ai_response &&
       latestMessage.mentioned_ai
     ) {
+      // KRITISCH: Sofort sperren gegen Race Conditions
+      if (lastProcessedMessageIdRef.current === latestMessage.id) {
+        console.log(`🔒 Message ${latestMessage.id} bereits verarbeitet (Race Condition verhindert)`);
+        return;
+      }
+      
+      // KRITISCH: Sofort als verarbeitet markieren, um Race Conditions zu verhindern
+      lastProcessedMessageIdRef.current = latestMessage.id;
+      
       // Prüfen, ob diese Nachricht bereits in Bearbeitung ist oder eine Antwort hat
       if (pendingAIRequests.has(latestMessage.id)) {
         console.log(`⏳ AI-Anfrage für Nachricht ${latestMessage.id} ist bereits in Bearbeitung.`);
@@ -46,13 +52,11 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
 
       if (hasResponse) {
         console.log(`✅ Antwort für Nachricht ${latestMessage.id} bereits im Chat vorhanden.`);
-        lastProcessedMessageIdRef.current = latestMessage.id; // Markiere als verarbeitet
         return;
       }
       
       // Wenn keine Antwort existiert und nichts in Bearbeitung ist, Anfrage starten
       pendingAIRequests.add(latestMessage.id);
-      lastProcessedMessageIdRef.current = latestMessage.id; // Markiere als verarbeitet
       console.log(`🤖 Triggering AI response für Nachricht: ${latestMessage.id}`);
 
       fetch('/api/ai', {
