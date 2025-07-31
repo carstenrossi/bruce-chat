@@ -158,7 +158,7 @@ Bitte antworte jetzt darauf.`;
 
     const { error: insertError } = await supabase.from('messages').insert({
       content: aiResponse,
-      author_id: session.user.id,
+      author_id: null, // AI-Nachrichten haben keine spezifische User-ID
       author_name: 'Bruce (KI)',
       chat_room_id: chatRoomId,
       is_ai_response: true,

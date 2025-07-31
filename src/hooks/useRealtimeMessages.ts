@@ -53,7 +53,8 @@ export function useRealtimeMessages(chatRoomId: string, user: User | null) {
         (payload) => {
           const newMessage = payload.new as Message;
           // Verhindere, dass die eigene Nachricht doppelt hinzugefügt wird
-          if (newMessage.author_id !== user?.id) {
+          // ABER: AI-Nachrichten (author_id = null) sollen IMMER angezeigt werden
+          if (newMessage.author_id !== user?.id || newMessage.is_ai_response) {
             setMessages(prev => [...prev, newMessage]);
           }
         }

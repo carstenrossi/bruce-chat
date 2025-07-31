@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS chat_rooms (
 CREATE TABLE IF NOT EXISTS messages (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   content TEXT NOT NULL,
-  author_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  author_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   author_name TEXT NOT NULL,
   chat_room_id UUID REFERENCES chat_rooms(id) ON DELETE CASCADE NOT NULL,
   is_ai_response BOOLEAN DEFAULT FALSE,
