@@ -27,7 +27,7 @@ Ein moderner Team-Chat mit integrierter Claude KI, die nur bei @mentions antwort
 - 🔐 **Magic Link Authentication** mit Supabase
 - 📱 **Responsive Design** - funktioniert überall
 - ⚡ **Live Updates** - sieh Nachrichten sofort
-- 🎯 **Context-Aware** - KI kennt die letzten 50 Nachrichten
+- 🎯 **Context-Aware** - KI kennt die letzten 50 Nachrichten (inkl. eigene Antworten)
 - 🚫 **Anti-Loop** - KI antwortet nur auf Menschen, nicht auf sich selbst
 - 📄 **PDF Export** - Chat-Verlauf als PDF exportieren
 - 🗑️ **Chat löschen** - Alle Nachrichten auf einmal löschen
