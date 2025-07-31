@@ -86,6 +86,15 @@ npm run dev
 # Öffne http://localhost:3000
 ```
 
+### 5. Multi-User Testing (WICHTIG!)
+```bash
+# Teste IMMER mit mehreren Browser-Sessions:
+# 1. Öffne http://localhost:3000 in Browser 1
+# 2. Öffne http://localhost:3000 in Inkognito/Browser 2
+# 3. Logge dich mit verschiedenen Accounts ein
+# 4. Teste @bruce mentions - nur 1 Antwort sollte erscheinen!
+```
+
 ## 🔧 **Features im Detail:**
 
 ### Chat Interface
@@ -96,14 +105,15 @@ npm run dev
 
 ### @Mentions
 - ✅ Detection von @bruce und @ki
-- ✅ Automatische KI-Antwort Simulation
-- 🚧 Echte Claude API Integration (nächster Schritt)
+- ✅ Echte Claude API Integration mit Web-Search
+- ✅ Multi-User-Safe (nur Message-Autor triggert AI)
 
-### Geplante Features
-- 🚧 Magic Link Authentication
-- 🚧 Realtime Multi-User Chat
-- 🚧 Persistent Message Storage
-- 🚧 Context-aware Claude Responses
+### Implementierte Features
+- ✅ Magic Link Authentication
+- ✅ Realtime Multi-User Chat
+- ✅ Persistent Message Storage
+- ✅ Context-aware Claude Responses
+- ✅ Multi-User-Safe AI Responses (nur Message-Autor triggert)
 - 🚧 Message Threading/Replies
 
 ## 🎨 **Design System:**

@@ -31,11 +31,11 @@
 - [x] Modell aktualisiert auf claude-sonnet-4-20250514
 
 ## ✅ Schritt 6: Robuste Duplicate Protection Lösung
-- [x] **Ursache identifiziert:** React StrictMode + Multiple Subscriptions
-- [x] **Client-Side:** Globaler pendingAIRequests Set + Debouncing implementiert
-- [x] **Server-Side:** processingMessages Set + HTTP 429 für Duplikate  
-- [x] **Cleanup:** Proper finally blocks für alle Szenarien
-- [x] **2-Layer Protection:** Client + Server verhindert ALLE Duplikate
+- [x] **Wahre Ursache gefunden:** Multi-User-Bug - jeder User triggerte eigene AI-Response!
+- [x] **Lösung:** Nur Message-Autor triggert AI (`msg.author_id === currentUser.id`)
+- [x] **Client-Side:** Globaler pendingAIRequests Set + 300ms Debouncing
+- [x] **Server-Side:** processingRequests Set verhindert parallele Verarbeitung
+- [x] **Dokumentiert:** Siehe `MULTI-USER-AI-BUG.md` für Details
 
 ## ✅ Schritt 7: LOKALES TESTING KOMPLETT! 🎉
 - [x] Dev Server läuft ✅ http://localhost:3000

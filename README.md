@@ -101,7 +101,8 @@ src/
 
 - **Mentions:** `@bruce` oder `@ki` triggern KI-Antworten
 - **Kontext:** Letzte 50 menschliche Nachrichten (keine KI-Loops)
-- **Async:** KI-Antworten kommen nach 1.5s Delay
+- **Multi-User Safe:** Nur der Message-Autor triggert KI-Antworten
+- **Debounced:** 300ms Verzögerung verhindert Race Conditions
 - **Persistent:** Alle Antworten werden gespeichert
 
 ## 🎨 Customization
@@ -114,6 +115,7 @@ src/
 
 **Chat lädt nicht?** → Prüfe Supabase-Verbindung und Environment Variables
 **KI antwortet nicht?** → Prüfe Anthropic API Key und Konsolenlogs
+**KI antwortet mehrfach?** → Siehe `MULTI-USER-AI-BUG.md` - nur bei mehreren eingeloggten Usern
 **Auth funktioniert nicht?** → Prüfe Supabase Auth Settings
 
 ---
