@@ -3,73 +3,67 @@
 import { useEffect, useRef } from 'react';
 import type { Message } from '@/lib/supabase';
 
-// Globaler State für pending AI requests (verhindert Cross-Component Duplikate)
+// Globaler State für pending AI requests (verhindert Cross-Component Duplikate und schnelle Re-Renders)
 const pendingAIRequests = new Set<string>();
 
 export function useAIResponse(messages: Message[], chatRoomId: string) {
-  const lastProcessedMessageId = useRef<string | null>(null);
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Wir verwenden einen Ref, um sicherzustellen, dass wir nicht auf veraltete Message-Listen zugreifen
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
 
   useEffect(() => {
-    if (!messages.length || !chatRoomId) return;
+    if (!chatRoomId || messages.length === 0) return;
 
-    // Neueste Nachricht prüfen
     const latestMessage = messages[messages.length - 1];
-    
-    // Prüfen ob es eine neue Mention gibt (und nicht schon verarbeitet/KI-Antwort)
+
+    // Prüfen, ob eine neue, vom Benutzer erstellte Erwähnung vorliegt
     if (
-      latestMessage && 
-      !latestMessage.is_ai_response && 
-      latestMessage.mentioned_ai &&
-      lastProcessedMessageId.current !== latestMessage.id &&
-      !pendingAIRequests.has(latestMessage.id) &&
-      // Prüfen ob bereits eine KI-Antwort auf diese Nachricht existiert
-      !messages.some(msg => 
-        msg.parent_message_id === latestMessage.id && msg.is_ai_response
-      )
+      latestMessage &&
+      !latestMessage.is_ai_response &&
+      latestMessage.mentioned_ai
     ) {
-      // Markiere als verarbeitet SOFORT um Duplikate zu verhindern
-      lastProcessedMessageId.current = latestMessage.id;
-      pendingAIRequests.add(latestMessage.id);
-      
-      // Clear any existing timeout
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
+      // Prüfen, ob diese Nachricht bereits in Bearbeitung ist oder eine Antwort hat
+      if (pendingAIRequests.has(latestMessage.id)) {
+        console.log(`⏳ AI-Anfrage für Nachricht ${latestMessage.id} ist bereits in Bearbeitung.`);
+        return;
+      }
+
+      // Prüfen, ob in der aktuellen Nachrichtenliste bereits eine Antwort existiert.
+      const hasResponse = messagesRef.current.some(
+        (msg) => msg.parent_message_id === latestMessage.id && msg.is_ai_response
+      );
+
+      if (hasResponse) {
+        console.log(`✅ Antwort für Nachricht ${latestMessage.id} bereits im Chat vorhanden.`);
+        return;
       }
       
-      // Debounced AI call
-      debounceTimeoutRef.current = setTimeout(async () => {
-        try {
-          console.log('🤖 Triggering AI response for message:', latestMessage.id);
-          const response = await fetch('/api/ai', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              messageId: latestMessage.id,
-              chatRoomId: chatRoomId,
-            }),
-          });
+      // Wenn keine Antwort existiert und nichts in Bearbeitung ist, Anfrage starten
+      pendingAIRequests.add(latestMessage.id);
+      console.log(`🤖 Triggering AI response für Nachricht: ${latestMessage.id}`);
 
-          if (!response.ok) {
-            console.error('Fehler bei KI-Antwort:', await response.text());
-          }
-        } catch (error) {
-          console.error('Fehler beim Abrufen der KI-Antwort:', error);
-        } finally {
-          // Always remove from pending, regardless of success/failure
-          pendingAIRequests.delete(latestMessage.id);
+      fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messageId: latestMessage.id,
+          chatRoomId: chatRoomId,
+        }),
+      })
+      .then(async (response) => {
+        if (!response.ok) {
+          console.error('Fehler bei KI-Antwort:', await response.text());
+        } else {
+          console.log(`✅ AI-Anfrage für ${latestMessage.id} erfolgreich abgeschlossen.`);
         }
-      }, 1000); // Kürzere Verzögerung
-
-      return () => {
-        if (debounceTimeoutRef.current) {
-          clearTimeout(debounceTimeoutRef.current);
-          // Remove from pending if cancelled
-          pendingAIRequests.delete(latestMessage.id);
-        }
-      };
+      })
+      .catch((error) => {
+        console.error('Fehler beim Abrufen der KI-Antwort:', error);
+      })
+      .finally(() => {
+        // Anfrage aus dem Set entfernen, egal ob erfolgreich oder nicht
+        pendingAIRequests.delete(latestMessage.id);
+      });
     }
   }, [messages, chatRoomId]);
 }
