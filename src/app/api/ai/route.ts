@@ -63,9 +63,8 @@ export async function POST(request: NextRequest) {
     // KI-Logik ab hier...
     const { data: contextMessages, error: contextError } = await supabase
       .from('messages')
-      .select('content, author_name, created_at, is_ai_response')
+      .select('content, author_name, is_ai_response')
       .eq('chat_room_id', chatRoomId)
-      .eq('is_ai_response', false)
       .order('created_at', { ascending: false })
       .limit(50);
 
@@ -85,23 +84,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Ursprüngliche Nachricht nicht gefunden' }, { status: 404 });
     }
 
-    const conversationContext = contextMessages?.reverse()?.map(msg => `${msg.author_name}: ${msg.content}`)?.join('\n') || '';
+    const conversationContext = contextMessages
+      ?.reverse()
+      .map(msg => {
+        const author = msg.is_ai_response ? 'Bruce (KI)' : msg.author_name;
+        return `${author}: ${msg.content}`;
+      })
+      .join('\n') || '';
     
     const shouldSearch = /such|search|aktuell|news|heute|neueste/i.test(originalMessage.content);
 
-    const prompt = `Du bist Bruce, ein hilfsreicher KI-Assistent in einem Team-Chat. Du wurdest in folgender Nachricht erwähnt:
-"${originalMessage.content}" - von ${originalMessage.author_name}
-Hier ist der Chat-Kontext der letzten Nachrichten:
+    const systemPrompt = `Du bist Bruce, ein hochentwickelter KI-Assistent in einem Team-Chat. Deine Hauptaufgabe ist es, präzise, hilfreiche und kohärente Antworten zu liefern. Halte dich strikt an die folgenden Verhaltensregeln:
+1. Vermeide Wiederholungen: Wiederhole niemals Informationen, die du oder ein anderer Benutzer bereits in den letzten Nachrichten erwähnt haben. Fasse dich kurz und bringe immer neue Aspekte oder Informationen ein.
+2. Sei selbstkritisch: Wenn ein Benutzer dich korrigiert oder auf einen Fehler in deiner vorherigen Antwort hinweist, akzeptiere die Korrektur. Behandle die Information des Benutzers als die neue Wahrheit. Argumentiere nicht dagegen.
+3. Baue auf dem Kontext auf: Nutze den gesamten Gesprächsverlauf, einschließlich deiner eigenen früheren Antworten, um den Faden der Konversation aufrechtzuerhalten und kontextbezogen zu antworten.
+4. Bleibe beim Thema: Konzentriere dich immer auf die letzte Frage oder Anweisung des Benutzers. Drifte nicht zu verwandten, aber irrelevanten Themen ab.
+5. Grundton: Antworte wie immer hilfsreich, freundlich und auf Deutsch. Du darfst Emojis verwenden, um deine Antworten natürlicher zu gestalten.`;
+
+    const userPrompt = `Hier ist der bisherige Chatverlauf:
+---
 ${conversationContext}
-Antworte hilfsreich, freundlich und auf Deutsch. Halte deine Antwort prägnant und relevant. Du darfst auch Emojis verwenden.${
-  shouldSearch ? '\n\nDu hast Zugriff auf Web-Suche für aktuelle Informationen. Nutze sie wenn nötig und gib immer Quellen an.' : ''
-}`;
+---
+Ich (${originalMessage.author_name}) habe dich gerade erwähnt: "${originalMessage.content}"
+Bitte antworte jetzt darauf.`;
 
     const messageParams: Anthropic.MessageCreateParams = {
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
+      max_tokens: 4000,
       temperature: 0.7,
-      messages: [{ role: 'user', content: prompt }],
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
     };
 
     if (shouldSearch) {
