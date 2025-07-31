@@ -23,8 +23,11 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [lastSentMessage, setLastSentMessage] = useState('');
+  const [lastSentTime, setLastSentTime] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const keyPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Effekt für das automatische Scrollen
   useEffect(() => {
@@ -42,22 +45,52 @@ export default function ChatPage() {
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!newMessage.trim() || !user || sending) return;
-    setSending(true);
-    const content = newMessage;
-    setNewMessage('');
-    const success = await sendMessage(content);
-    if (!success) {
-      setNewMessage(content);
-      alert('Fehler beim Senden der Nachricht. Bitte versuche es erneut.');
+    
+    const content = newMessage.trim();
+    if (!content || !user || sending) return;
+    
+    // Verhindere identische Nachrichten innerhalb von 2 Sekunden
+    const now = Date.now();
+    if (content === lastSentMessage && now - lastSentTime < 2000) {
+      console.log('Duplikat-Nachricht innerhalb von 2 Sekunden verhindert');
+      return;
     }
-    setSending(false);
+    
+    // Setze sending SOFORT und speichere die Nachricht
+    setSending(true);
+    setLastSentMessage(content);
+    setLastSentTime(now);
+    
+    // Leere das Eingabefeld sofort
+    setNewMessage('');
+    
+    try {
+      const success = await sendMessage(content);
+      if (!success) {
+        setNewMessage(content);
+        alert('Fehler beim Senden der Nachricht. Bitte versuche es erneut.');
+      }
+    } finally {
+      // Kurze Verzögerung vor dem Zurücksetzen von sending
+      setTimeout(() => setSending(false), 500);
+    }
   };
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      
+      // Verhindere schnelle mehrfache Enter-Tastendrücke
+      if (keyPressTimeoutRef.current) {
+        return;
+      }
+      
       handleSendMessage();
+      
+      // Setze einen kurzen Timeout, um schnelle wiederholte Enter-Drücke zu ignorieren
+      keyPressTimeoutRef.current = setTimeout(() => {
+        keyPressTimeoutRef.current = null;
+      }, 300);
     }
   };
 
