@@ -98,7 +98,7 @@ Antworte hilfsreich, freundlich und auf Deutsch. Halte deine Antwort prägnant u
 }`;
 
     const messageParams: Anthropic.MessageCreateParams = {
-      model: 'claude-3-sonnet-20240229',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
       temperature: 0.7,
       messages: [{ role: 'user', content: prompt }],
@@ -106,7 +106,7 @@ Antworte hilfsreich, freundlich und auf Deutsch. Halte deine Antwort prägnant u
 
     if (shouldSearch) {
       messageParams.tools = [{
-        type: "web_search",
+        type: "web_search_20250305",
         name: "web_search",
       }];
     }
