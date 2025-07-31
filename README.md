@@ -2,6 +2,13 @@
 
 Ein moderner Team-Chat mit integrierter Claude KI, die nur bei @mentions antwortet.
 
+## 📚 Dokumentation
+- **README.md** (diese Datei) - Übersicht und Quick Start
+- **SETUP.md** - Detaillierte lokale Entwicklungsanleitung
+- **deploy-instructions.md** - Schritt-für-Schritt Deployment Guide
+- **DEPLOYMENT-STATUS.md** - Entwicklungsstatus und Fortschritt
+- **MULTI-USER-AI-BUG.md** - Wichtige Dokumentation zum Multi-User Bug
+
 ## ✨ Features
 
 - 💬 **Realtime Chat** mit mehreren Nutzern
@@ -12,6 +19,8 @@ Ein moderner Team-Chat mit integrierter Claude KI, die nur bei @mentions antwort
 - ⚡ **Live Updates** - sieh Nachrichten sofort
 - 🎯 **Context-Aware** - KI kennt die letzten 50 Nachrichten
 - 🚫 **Anti-Loop** - KI antwortet nur auf Menschen, nicht auf sich selbst
+- 📄 **PDF Export** - Chat-Verlauf als PDF exportieren
+- 🗑️ **Chat löschen** - Alle Nachrichten auf einmal löschen
 
 ## 🚀 Quick Start
 
@@ -29,8 +38,12 @@ npm install
 
 3. **Environment Variables:**
 ```bash
-cp .env.local.example .env.local
-# Fülle deine Supabase und Anthropic API Keys ein
+# Erstelle .env.local mit folgenden Variablen:
+cat > .env.local << 'EOF'
+NEXT_PUBLIC_SUPABASE_URL=deine_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=dein_supabase_anon_key
+ANTHROPIC_API_KEY=dein_claude_api_key
+EOF
 ```
 
 4. **Development starten:**
@@ -71,9 +84,7 @@ NEXT_PUBLIC_MAX_CONTEXT_MESSAGES=50
 
 ### Deployment auf Vercel
 
-1. **Repository zu Vercel connecten**
-2. **Environment Variables setzen** (siehe oben)
-3. **Deploy!** - Vercel erkennt Next.js automatisch
+Siehe `deploy-instructions.md` für detaillierte Schritt-für-Schritt Anleitung.
 
 ## 🏗 Architektur
 

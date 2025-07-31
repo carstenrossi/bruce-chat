@@ -45,32 +45,34 @@
 - [x] **Multiple @bruce mentions** funktionieren perfekt
 - [x] **Lokale App ist DEPLOYMENT READY!** ✅
 
-## 🚀 Schritt 8: VERCEL DEPLOYMENT (READY TO START!)
+## 🚀 Schritt 8: VERCEL DEPLOYMENT (BEREIT!)
 - [ ] **Supabase Production Setup** für Live Environment
 - [ ] **Environment Variables** in Vercel konfigurieren
 - [ ] **GitHub Repo** mit Vercel verbinden
 - [ ] **Live Deployment** durchführen
 - [ ] **Production Testing** mit echten URLs
 
-## ⏳ Schritt 6: Lokales Testing
-- [ ] Starte npm run dev
-- [ ] Teste Magic Link Login
-- [ ] Teste Chat Nachrichten
-- [ ] Teste @bruce mention
+## 📋 Deployment Checklist für Vercel
 
-## ⏳ Schritt 7: Vercel Deployment
-- [ ] Repository zu Vercel connecten
-- [ ] Environment Variables in Vercel setzen
-- [ ] Deploy!
+1. **Supabase Auth Settings**
+   - Site URL auf Vercel-Domain setzen
+   - Redirect URLs konfigurieren
+   - Email Templates anpassen
 
-## ⏳ Schritt 8: Supabase Auth Settings
-- [ ] Site URL in Supabase setzen
-- [ ] Redirect URLs konfigurieren
-- [ ] Teste Production Login
+2. **Environment Variables in Vercel**
+   ```
+   NEXT_PUBLIC_SUPABASE_URL
+   NEXT_PUBLIC_SUPABASE_ANON_KEY
+   ANTHROPIC_API_KEY
+   ```
+
+3. **Post-Deployment Testing**
+   - Magic Link Login mit echter Domain
+   - Multi-User Chat Testing
+   - KI-Responses in Production
 
 ---
 
-**Aktueller Status:** Wartend auf Supabase Projekt
-**Nächster Schritt:** API Keys sammeln
-
-**Fehler aktuell:** `Invalid URL` in middleware.ts (normal ohne .env.local)
+**Aktueller Status:** ✅ Lokale Entwicklung abgeschlossen
+**Nächster Schritt:** Vercel Deployment
+**GitHub Repo:** https://github.com/carstenrossi/bruce-chat

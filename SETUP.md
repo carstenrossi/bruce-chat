@@ -1,13 +1,15 @@
-# Bruce Chat Setup Guide
+# Bruce Chat - Detailliertes Setup Guide
 
-## 🎯 **Was bereits funktioniert:**
-✅ Chat UI mit responsivem Design  
-✅ @bruce/@ki Mention Detection  
-✅ Simulierte KI-Antworten  
-✅ TypeScript & Tailwind Setup  
-✅ Supabase Type Definitionen  
+## ✅ **Vollständig implementierte Features:**
+- Chat UI mit responsivem Design  
+- @bruce/@ki Mention Detection mit echter Claude API
+- Claude Sonnet 4 Integration mit Web-Search
+- TypeScript & Tailwind CSS v4 Setup  
+- Supabase Integration (Auth, Realtime, Database)
+- Multi-User-Safe AI Responses
+- PDF Export & Chat-Löschen Funktionen
 
-## 🚧 **Nächste Schritte:**
+## 📋 **Setup-Anleitung:**
 
 ### 1. Supabase Projekt einrichten
 ```bash
@@ -17,59 +19,15 @@
 ```
 
 ### 2. Database Schema erstellen
-Führe diese SQL-Befehle in Supabase SQL Editor aus:
+```bash
+# Führe die komplette supabase-schema.sql im Supabase SQL Editor aus
+# Diese Datei enthält:
+# - Alle Tabellen (profiles, chat_rooms, messages)
+# - RLS Policies
+# - Trigger für automatische Profile-Erstellung
+# - Realtime-Aktivierung für Messages
 
-```sql
--- Users/Profiles Tabelle
-CREATE TABLE profiles (
-  id UUID REFERENCES auth.users(id) PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
-  full_name TEXT,
-  avatar_url TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Chat Rooms Tabelle
-CREATE TABLE chat_rooms (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name TEXT NOT NULL,
-  description TEXT,
-  created_by UUID REFERENCES profiles(id) NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Messages Tabelle
-CREATE TABLE messages (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  content TEXT NOT NULL,
-  author_id UUID REFERENCES profiles(id) NOT NULL,
-  author_name TEXT NOT NULL,
-  chat_room_id UUID REFERENCES chat_rooms(id) NOT NULL,
-  is_ai_response BOOLEAN DEFAULT FALSE,
-  mentioned_ai BOOLEAN DEFAULT FALSE,
-  parent_message_id UUID REFERENCES messages(id),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- RLS Policies aktivieren
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE chat_rooms ENABLE ROW LEVEL SECURITY;
-ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
-
--- Policies für angemeldete User
-CREATE POLICY "Users can view all profiles" ON profiles FOR SELECT USING (true);
-CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
-
-CREATE POLICY "Users can view all chat rooms" ON chat_rooms FOR SELECT USING (true);
-CREATE POLICY "Users can create chat rooms" ON chat_rooms FOR INSERT WITH CHECK (auth.uid() = created_by);
-
-CREATE POLICY "Users can view all messages" ON messages FOR SELECT USING (true);
-CREATE POLICY "Users can insert messages" ON messages FOR INSERT WITH CHECK (auth.uid() = author_id);
-
--- Realtime für Messages aktivieren
-ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+# WICHTIG: author_id in messages kann NULL sein (für AI-Nachrichten)
 ```
 
 ### 3. Environment Variables
