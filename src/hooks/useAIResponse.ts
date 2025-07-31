@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { Message } from '@/lib/supabase';
+import type { User } from '@supabase/supabase-js';
 
 // Globaler State für pending AI requests (verhindert Cross-Component Duplikate und schnelle Re-Renders)
 const pendingAIRequests = new Set<string>();
@@ -27,13 +28,13 @@ function tryLockMessage(messageId: string): boolean {
   return true; // Erfolgreich gesperrt
 }
 
-export function useAIResponse(messages: Message[], chatRoomId: string) {
+export function useAIResponse(messages: Message[], chatRoomId: string, currentUser: User | null) {
   const instanceId = useRef(`instance_${Math.random()}`).current;
   const mountTimeRef = useRef(Date.now());
 
   useEffect(() => {
-    console.log(`🔍 useAIResponse triggered - instanceId: ${instanceId}, chatRoomId: ${chatRoomId}, messages.length: ${messages.length}, mountTime: ${Date.now() - mountTimeRef.current}ms`);
-    if (!chatRoomId || messages.length === 0) return;
+    console.log(`🔍 useAIResponse triggered - instanceId: ${instanceId}, chatRoomId: ${chatRoomId}, messages.length: ${messages.length}, user: ${currentUser?.email}, mountTime: ${Date.now() - mountTimeRef.current}ms`);
+    if (!chatRoomId || messages.length === 0 || !currentUser) return;
     
     // Hole oder erstelle das Set für diesen Room
     if (!processedMessagesPerRoom.has(chatRoomId)) {
@@ -41,16 +42,17 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
     }
     const processedMessages = processedMessagesPerRoom.get(chatRoomId)!;
 
-    // WICHTIG: Finde ALLE neuen User-Messages mit @mentions, nicht nur die letzte
+    // WICHTIG: Finde ALLE neuen User-Messages mit @mentions vom AKTUELLEN USER
     const newUserMessagesWithMentions = messages.filter(msg => 
       !msg.is_ai_response && 
       msg.mentioned_ai && 
+      msg.author_id === currentUser.id &&  // NUR Messages vom aktuellen User!
       !msg.id.startsWith('temp_') &&
       !processedMessages.has(msg.id) &&
       !pendingAIRequests.has(msg.id)
     );
 
-    console.log(`📊 Found ${newUserMessagesWithMentions.length} new user messages with mentions`);
+    console.log(`📊 Found ${newUserMessagesWithMentions.length} new user messages with mentions from current user (${currentUser.email})`);
     console.log(`📊 Processed messages: ${Array.from(processedMessages).join(', ')}`);
     console.log(`📊 Pending requests: ${Array.from(pendingAIRequests).join(', ')}`);
     
@@ -140,7 +142,7 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
 
       messageDebounceTimers.set(message.id, debounceTimer);
     }
-  }, [messages, chatRoomId, instanceId]); // Messages-Dependency ist OK, weil wir frühe Returns für AI-Messages haben
+  }, [messages, chatRoomId, currentUser, instanceId]); // Messages-Dependency ist OK, weil wir frühe Returns für AI-Messages haben
   
   // Cleanup bei Unmount
   useEffect(() => {

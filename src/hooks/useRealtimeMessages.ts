@@ -11,8 +11,8 @@ export function useRealtimeMessages(chatRoomId: string, user: User | null) {
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
-  // KI-Antworten bei @mentions aktivieren
-  useAIResponse(messages, chatRoomId);
+  // KI-Antworten bei @mentions aktivieren - nur für den aktuellen User
+  useAIResponse(messages, chatRoomId, user);
 
   // Lade initiale Nachrichten
   useEffect(() => {
