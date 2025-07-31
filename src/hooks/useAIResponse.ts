@@ -10,6 +10,7 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
   const lastProcessedMessageIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    console.log(`🔍 useAIResponse triggered - chatRoomId: ${chatRoomId}, messages.length: ${messages.length}`);
     if (!chatRoomId || messages.length === 0) return;
 
     const latestMessage = messages[messages.length - 1];

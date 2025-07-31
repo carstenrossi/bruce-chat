@@ -16,6 +16,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     messageId = body.messageId;
     const chatRoomId = body.chatRoomId;
+    
+    console.log(`🚨 [AI API] Request received for messageId: ${messageId}`);
 
     if (!messageId || !chatRoomId) {
       return NextResponse.json(
