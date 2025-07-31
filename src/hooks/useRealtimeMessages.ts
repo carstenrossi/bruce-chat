@@ -52,7 +52,10 @@ export function useRealtimeMessages(chatRoomId: string, user: User | null) {
         },
         (payload) => {
           const newMessage = payload.new as Message;
-          setMessages(prev => [...prev, newMessage]);
+          // Verhindere, dass die eigene Nachricht doppelt hinzugefügt wird
+          if (newMessage.author_id !== user?.id) {
+            setMessages(prev => [...prev, newMessage]);
+          }
         }
       )
       .subscribe();
@@ -60,26 +63,48 @@ export function useRealtimeMessages(chatRoomId: string, user: User | null) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [chatRoomId, supabase]);
+  }, [chatRoomId, supabase, user]);
 
   // Sende neue Nachricht
   const sendMessage = async (content: string): Promise<boolean> => {
     if (!user || !content.trim()) return false;
 
     try {
-      const { error } = await supabase.from('messages').insert({
+      const messageToInsert = {
         content: content.trim(),
         author_id: user.id,
         author_name: user.email?.split('@')[0] || 'Unbekannt',
         chat_room_id: chatRoomId,
         mentioned_ai: content.toLowerCase().includes('@bruce') || content.toLowerCase().includes('@ki'),
-      });
+      };
+
+      // Optimistisches Update: Füge die Nachricht sofort zum lokalen State hinzu
+      const tempId = `temp_${Date.now()}`;
+      const optimisticMessage: Message = {
+        ...messageToInsert,
+        id: tempId,
+        created_at: new Date().toISOString(),
+        is_ai_response: false,
+        parent_message_id: null,
+      };
+      setMessages(prev => [...prev, optimisticMessage]);
+
+      const { data, error } = await supabase
+        .from('messages')
+        .insert(messageToInsert)
+        .select()
+        .single();
 
       if (error) {
         console.error('Fehler beim Senden der Nachricht:', error);
+        // Rollback bei Fehler
+        setMessages(prev => prev.filter(m => m.id !== tempId));
         return false;
       }
 
+      // Ersetze die temporäre Nachricht durch die echte aus der DB
+      setMessages(prev => prev.map(m => m.id === tempId ? data : m));
+      
       return true;
     } catch (error) {
       console.error('Fehler beim Senden der Nachricht:', error);
@@ -92,7 +117,6 @@ export function useRealtimeMessages(chatRoomId: string, user: User | null) {
     if (!chatRoomId) return false;
 
     try {
-      // Lösche alle Nachrichten aus diesem Chat-Raum
       const { error } = await supabase
         .from('messages')
         .delete()
@@ -103,7 +127,6 @@ export function useRealtimeMessages(chatRoomId: string, user: User | null) {
         return false;
       }
 
-      // Lokalen State leeren
       setMessages([]);
       return true;
     } catch (error) {
