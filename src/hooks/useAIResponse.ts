@@ -1,19 +1,23 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import type { Message } from '@/lib/supabase';
 
 // Globaler State für pending AI requests (verhindert Cross-Component Duplikate und schnelle Re-Renders)
 const pendingAIRequests = new Set<string>();
 
+// KRITISCH: Globaler State für verarbeitete Messages (überlebt Component Re-Mounts)
+const processedMessages = new Set<string>();
+
 export function useAIResponse(messages: Message[], chatRoomId: string) {
-  const lastProcessedMessageIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     console.log(`🔍 useAIResponse triggered - chatRoomId: ${chatRoomId}, messages.length: ${messages.length}`);
     if (!chatRoomId || messages.length === 0) return;
 
     const latestMessage = messages[messages.length - 1];
+    console.log(`📊 Latest message: id=${latestMessage?.id}, is_ai=${latestMessage?.is_ai_response}, mentioned=${latestMessage?.mentioned_ai}`);
+    console.log(`📊 Processed messages: ${Array.from(processedMessages).join(', ')}`);
     
     // KRITISCH: Nur auf neue User-Messages reagieren, nicht auf AI-Antworten!
     if (!latestMessage || latestMessage.is_ai_response) return;
@@ -31,13 +35,13 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
       latestMessage.mentioned_ai
     ) {
       // KRITISCH: Sofort sperren gegen Race Conditions
-      if (lastProcessedMessageIdRef.current === latestMessage.id) {
+      if (processedMessages.has(latestMessage.id)) {
         console.log(`🔒 Message ${latestMessage.id} bereits verarbeitet (Race Condition verhindert)`);
         return;
       }
       
       // KRITISCH: Sofort als verarbeitet markieren, um Race Conditions zu verhindern
-      lastProcessedMessageIdRef.current = latestMessage.id;
+      processedMessages.add(latestMessage.id);
       
       // Prüfen, ob diese Nachricht bereits in Bearbeitung ist oder eine Antwort hat
       if (pendingAIRequests.has(latestMessage.id)) {
@@ -83,4 +87,12 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
       });
     }
   }, [messages, chatRoomId]); // Messages-Dependency ist OK, weil wir frühe Returns für AI-Messages haben
+  
+  // Cleanup: Entferne alte processedMessages wenn Komponente unmounted wird oder chatRoomId wechselt
+  useEffect(() => {
+    return () => {
+      // Bei Room-Wechsel die processedMessages leeren
+      processedMessages.clear();
+    };
+  }, [chatRoomId]);
 }
