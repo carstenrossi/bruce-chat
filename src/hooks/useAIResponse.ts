@@ -18,6 +18,12 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
     // KRITISCH: Nur auf neue User-Messages reagieren, nicht auf AI-Antworten!
     if (!latestMessage || latestMessage.is_ai_response) return;
     
+    // KRITISCH: Ignoriere temporäre/optimistic Messages (temp_ prefix)
+    if (latestMessage.id.startsWith('temp_')) {
+      console.log(`⏭️ Ignoring optimistic message: ${latestMessage.id}`);
+      return;
+    }
+    
     // Verhindere mehrfache Verarbeitung derselben Message
     if (lastProcessedMessageIdRef.current === latestMessage.id) return;
 
