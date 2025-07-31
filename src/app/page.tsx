@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { useChatRooms } from '@/hooks/useChatRooms';
 import { useRealtimeMessages } from '@/hooks/useRealtimeMessages';
@@ -11,12 +11,9 @@ import jsPDF from 'jspdf';
 // Hilfsfunktion, um Markdown zu reinigen, Links zu extrahieren und nicht-darstellbare Zeichen zu entfernen
 const cleanTextForPdf = (text: string): string => {
   return text
-    // Ersetze Markdown-Links durch "Titel: URL"
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1: $2')
-    // Entferne fette Schrift und andere Markdown-Formatierungen
     .replace(/\*\*(.*?)\*\*/g, '$1')
     .replace(/\*(.*?)\*/g, '$1')
-    // Entferne Emojis und andere komplexe Unicode-Zeichen, die jspdf nicht standardmäßig unterstützt
     .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '');
 };
 
@@ -27,19 +24,38 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Passt die Höhe der Textarea an den Inhalt an
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [newMessage]);
+
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!newMessage.trim() || !user || sending) return;
+    
     setSending(true);
     const content = newMessage;
     setNewMessage('');
+    
     const success = await sendMessage(content);
+    
     if (!success) {
       setNewMessage(content);
       alert('Fehler beim Senden der Nachricht. Bitte versuche es erneut.');
     }
     setSending(false);
+  };
+  
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
   };
 
   const handleClearChat = async () => {
@@ -54,20 +70,18 @@ export default function ChatPage() {
   };
 
   const handleExportToPdf = () => {
+    // ... (restliche Funktion bleibt unverändert)
     if (messages.length === 0 || isExporting) return;
     setIsExporting(true);
-
     try {
       const doc = new jsPDF();
       let y = 15;
       const pageHeight = doc.internal.pageSize.height;
       const margin = 10;
-      const lineHeight = 7; // Mehr Platz pro Zeile
-
+      const lineHeight = 7;
       const printLine = (text: string, font: 'bold' | 'normal' = 'normal') => {
         const lines = doc.splitTextToSize(text, doc.internal.pageSize.width - margin * 2);
         doc.setFont('Helvetica', font);
-
         lines.forEach((line: string) => {
           if (y > pageHeight - margin) {
             doc.addPage();
@@ -77,34 +91,26 @@ export default function ChatPage() {
           y += lineHeight;
         });
       };
-
       printLine('Bruce Chat - Chat-Protokoll', 'bold');
       y += lineHeight;
-
       messages.forEach(message => {
         const timestamp = new Date(message.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
         const author = `${message.author_name}${message.is_ai_response ? ' (KI)' : ''}`;
         const header = `${author} (${timestamp}):`;
         const cleanedContent = cleanTextForPdf(message.content);
-
-        // Prüfen, ob der gesamte Block auf die Seite passt, sonst neue Seite beginnen
         const headerLines = doc.splitTextToSize(header, doc.internal.pageSize.width - margin * 2);
         const contentLines = doc.splitTextToSize(cleanedContent, doc.internal.pageSize.width - margin * 2);
         const blockHeight = (headerLines.length + contentLines.length) * lineHeight;
-
-        if (y + blockHeight > pageHeight - margin && y > 20) { // y > 20 verhindert Seitenumbruch direkt nach Titel
+        if (y + blockHeight > pageHeight - margin && y > 20) {
             doc.addPage();
             y = margin;
         }
-        
         printLine(header, 'bold');
         printLine(cleanedContent, 'normal');
-        y += lineHeight / 2; // Extra Abstand nach jeder Nachricht
+        y += lineHeight / 2;
       });
-
       const date = new Date().toISOString().split('T')[0];
       doc.save(`bruce-chat-export-${date}.pdf`);
-
     } catch (error) {
       console.error("Fehler beim Erstellen des PDFs:", error);
       alert("Entschuldigung, beim Erstellen des PDFs ist ein Fehler aufgetreten.");
@@ -127,7 +133,8 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 p-4">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
+        {/* ... (Header bleibt unverändert) ... */}
+         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Bruce Chat 💬</h1>
             <p className="text-sm text-gray-600">Kollaborativer Chat mit KI-Integration</p>
@@ -157,6 +164,7 @@ export default function ChatPage() {
         </div>
       </header>
       <main className="flex-1 overflow-y-auto p-4" id="chat-container">
+       {/* ... (Chat-Nachrichten bleiben unverändert) ... */}
         <div className="max-w-4xl mx-auto space-y-4">
           {messagesLoading ? (
             <div className="text-center text-gray-500">
@@ -213,26 +221,29 @@ export default function ChatPage() {
       </main>
       <footer className="bg-white border-t border-gray-200 p-4">
         <div className="max-w-4xl mx-auto">
-          <form onSubmit={handleSendMessage} className="flex gap-2">
-            <input
-              type="text"
+          <form onSubmit={handleSendMessage} className="flex gap-2 items-end">
+            <textarea
+              ref={textareaRef}
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              placeholder={user ? "Nachricht schreiben... (@bruce oder @ki für KI-Antwort)" : "Bitte anmelden um zu chatten"}
+              onKeyDown={handleKeyDown}
+              placeholder={user ? "Nachricht schreiben... (Shift+Enter für neue Zeile)" : "Bitte anmelden um zu chatten"}
               disabled={!user}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed resize-none overflow-y-auto"
+              rows={1}
+              style={{maxHeight: '150px'}}
             />
             <button
               type="submit"
               disabled={!newMessage.trim() || !user || sending}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors self-stretch"
             >
               {sending ? '...' : 'Senden'}
             </button>
           </form>
           <p className="text-xs text-gray-500 mt-2">
             {user 
-              ? "💡 Tipp: Verwende @bruce oder @ki um die KI zu erwähnen"
+              ? "💡 Tipp: Shift+Enter für einen Zeilenumbruch"
               : "🔐 Melde dich an um am Chat teilzunehmen"
             }
           </p>
