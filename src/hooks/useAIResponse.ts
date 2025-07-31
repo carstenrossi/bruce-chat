@@ -6,14 +6,20 @@ import type { Message } from '@/lib/supabase';
 // Globaler State für pending AI requests (verhindert Cross-Component Duplikate und schnelle Re-Renders)
 const pendingAIRequests = new Set<string>();
 
-// KRITISCH: Globaler State für verarbeitete Messages (überlebt Component Re-Mounts)
-const processedMessages = new Set<string>();
+// KRITISCH: Globaler State für verarbeitete Messages pro Room (überlebt Component Re-Mounts)
+const processedMessagesPerRoom = new Map<string, Set<string>>();
 
 export function useAIResponse(messages: Message[], chatRoomId: string) {
 
   useEffect(() => {
     console.log(`🔍 useAIResponse triggered - chatRoomId: ${chatRoomId}, messages.length: ${messages.length}`);
     if (!chatRoomId || messages.length === 0) return;
+    
+    // Hole oder erstelle das Set für diesen Room
+    if (!processedMessagesPerRoom.has(chatRoomId)) {
+      processedMessagesPerRoom.set(chatRoomId, new Set<string>());
+    }
+    const processedMessages = processedMessagesPerRoom.get(chatRoomId)!;
 
     const latestMessage = messages[messages.length - 1];
     console.log(`📊 Latest message: id=${latestMessage?.id}, is_ai=${latestMessage?.is_ai_response}, mentioned=${latestMessage?.mentioned_ai}`);
@@ -88,11 +94,5 @@ export function useAIResponse(messages: Message[], chatRoomId: string) {
     }
   }, [messages, chatRoomId]); // Messages-Dependency ist OK, weil wir frühe Returns für AI-Messages haben
   
-  // Cleanup: Entferne alte processedMessages wenn Komponente unmounted wird oder chatRoomId wechselt
-  useEffect(() => {
-    return () => {
-      // Bei Room-Wechsel die processedMessages leeren
-      processedMessages.clear();
-    };
-  }, [chatRoomId]);
+
 }
